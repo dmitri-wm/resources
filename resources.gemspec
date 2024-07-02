@@ -8,17 +8,17 @@ Gem::Specification.new do |spec|
   spec.authors = ["dmitri-wm"]
   spec.email = ["dmytro.kyselevych-contractor@procore.com"]
 
-  spec.summary = "TODO: Write a short summary, because RubyGems requires one."
-  spec.description = "TODO: Write a longer description or delete this line."
-  spec.homepage = "TODO: Put your gem's website or public repo URL here."
+  spec.summary = "A flexible ORM-like tool for mapping data between various data sources"
+  spec.description = "Resources is an internal ORM-like tool built on top of Active Record for SQL queries. It provides a flexible and scalable approach to map data between different types of data sources such as databases, HTTP APIs, arrays, in-memory databases, and more."
+  spec.homepage = "https://github.com/your-organization/resources" # Update this with your actual repo URL
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
+  spec.metadata["allowed_push_host"] = "https://your-private-gem-server.com" # Update this if you have a private gem server
 
-  # spec.metadata["homepage_uri"] = spec.homepage
-  # spec.metadata["source_code_uri"] = "TODO: Put your gem's public repo URL here."
-  # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -33,8 +33,18 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Uncomment to register a new dependency of your gem
-  # spec.add_dependency "example-gem", "~> 1.0"
+  # Dependencies
+  spec.add_dependency "dry-matcher"
+  spec.add_dependency "dry-monads"
+  spec.add_dependency "dry-struct"
+  spec.add_dependency "dry-validation"
+
+  # Development dependencies
+  spec.add_development_dependency "rake", "~> 13.0"
+  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rubocop", "~> 1.21"
+  spec.add_development_dependency "activerecord", "~> 7.0.8.1"
+  spec.add_development_dependency "pg", "~> 1.3.5"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
