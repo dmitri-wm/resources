@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+  <object-set>
+    <table path="resources_test.public.change_event_line_items"/>
+  </object-set>
+</data>

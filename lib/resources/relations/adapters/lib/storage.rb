@@ -33,6 +33,7 @@ module Resources
               include Exceptions
               include Memoizer
               extend Dry::Initializer
+              Types = Monads::Types
 
               delegate :[], :delete, :clear, to: :store
 

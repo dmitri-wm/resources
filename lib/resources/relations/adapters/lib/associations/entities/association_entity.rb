@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 # domain: Change Events
 
 module Resources
@@ -19,10 +20,11 @@ module Resources
 
               attr_accessor :to_preload
 
-              option :config, AssociationConfig::ThroughRelation::Interface | AssociationConfig::DirectRelation::Interface
+              option :config,
+                     AssociationConfig::ThroughRelation::Interface | AssociationConfig::DirectRelation::Interface
               option :parent, Types::Instance(Adapters::Base)
 
-              delegate :where, :filter, :select, :paginate, :sort, :all, :pluck, :first, :to => :child_relation
+              delegate :where, :filter, :select, :paginate, :sort, :all, :pluck, :first, to: :child_relation
               delegate :name, to: :config
 
               memoize def child_relation
@@ -44,7 +46,7 @@ module Resources
               def all
                 fetch_child_collection
               end
-              alias_method :to_a, :all
+              alias to_a all
 
               def fetch_association
                 config.respond_to?(:through) ? fetch_through_association : fetch_direct_association

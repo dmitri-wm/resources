@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# domain: Change Events
 
 module Resources
   module Relations
@@ -15,7 +14,7 @@ module Resources
         include Lib::Transformation
         include Lib::Associations
 
-        use_sorting_service ->(*_) { raise 'You need to setup sorting service' }
+        use_sorting_service ->(*_) { raise "You need to setup sorting service" }
         default_entity_mapper Resources::Entities::Auto
 
         def initialize(context:)

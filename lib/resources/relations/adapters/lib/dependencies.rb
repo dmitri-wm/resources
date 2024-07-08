@@ -1,5 +1,8 @@
 # frozen_string_literal: true
+
 # domain: Change Events
+require_relative "service_call"
+require_relative "storage"
 
 module Resources
   module Relations

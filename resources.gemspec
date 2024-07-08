@@ -31,7 +31,7 @@ Gem::Specification.new do |spec|
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
-  spec.require_paths = ["lib"]
+  spec.require_paths = %w[lib external]
 
   # Dependencies
   spec.add_dependency "dry-matcher"
@@ -40,11 +40,11 @@ Gem::Specification.new do |spec|
   spec.add_dependency "dry-validation"
 
   # Development dependencies
+  spec.add_development_dependency "activerecord", "~> 7.0.8.1"
+  spec.add_development_dependency "pg", "~> 1.3.5"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rubocop", "~> 1.21"
-  spec.add_development_dependency "activerecord", "~> 7.0.8.1"
-  spec.add_development_dependency "pg", "~> 1.3.5"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

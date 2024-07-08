@@ -1,5 +1,7 @@
 # frozen_string_literal: true
+
 # domain: Change Events
+require_relative "associations/entities"
 
 module Resources
   module Relations
@@ -31,7 +33,8 @@ module Resources
             private
 
             def define_association(type, name, options)
-              Entities::AssociationConfig.new(name: name, type: type, **options).tap(&store_association_config).then(&method(:define_association_method))
+              Entities::AssociationConfig.new(name: name, type: type,
+                                              **options).tap(&store_association_config).then(&method(:define_association_method))
             end
 
             def define_association_method(association)
@@ -89,20 +92,22 @@ module Resources
           end
 
           def preload_associations(associations_schema, top_level: false)
-            Maybe(top_level.presence).fmap { associations_schema.keys }.value_or(associations_schema).each(&method(:preload_association))
+            Maybe(top_level.presence).fmap do
+              associations_schema.keys
+            end.value_or(associations_schema).each(&method(:preload_association))
           end
 
-          def preload_association(name, nested_associations={})
+          def preload_association(name, nested_associations = {})
             send(name).preload_associations(nested_associations)
           end
 
           def with(*associations)
             tap do
-              parse_associations(associations).
-                tap(&:prop_down_with).
-                then(&:keys).
-                tap(&method(:preload_associations)).
-                then(&method(:associations_to_merge=))
+              parse_associations(associations)
+                .tap(&:prop_down_with)
+                .then(&:keys)
+                .tap(&method(:preload_associations))
+                .then(&method(:associations_to_merge=))
             end
           end
 
@@ -139,10 +144,10 @@ module Resources
               associated_data = record.send(association)
               if nested_associations.any?
                 associated_data = if associated_data.is_a?(Array)
-                  associated_data.map { |r| merge_associations(r, nested_associations) }
-                else
-                  merge_associations(associated_data, nested_associations)
-                end
+                                    associated_data.map { |r| merge_associations(r, nested_associations) }
+                                  else
+                                    merge_associations(associated_data, nested_associations)
+                                  end
               end
               record.instance_variable_set("@#{association}", associated_data)
               record.define_singleton_method(association) { instance_variable_get("@#{association}") }

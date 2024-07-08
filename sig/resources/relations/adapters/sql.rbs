@@ -1,0 +1,11 @@
+module Resources
+  module Relations
+    module Adapters
+      class Sql
+        def fetch: -> Array[Hash[String, String]]
+
+        def fetch_query: ->
+      end
+    end
+  end
+end

@@ -12,9 +12,10 @@ module Resources
 
         use_sorting_service ->(data, sorting_params, _context) { data.order(sorting_params) }
 
-        # @return [ActiveRecord::Relation]
+        # @return [Array<Hash>]
         def fetch = fetch_query.then(&execute_query)
 
+        # @return [ActiveRecord::Relation]
         def fetch_query = cached_query || build_query
 
         def build_query = initial_scope.then(&apply_queries).tap(&cache_query)

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
-# domain: Change Events
 
+# domain: Change Events
 module Resources
   module Relations
     module Adapters
