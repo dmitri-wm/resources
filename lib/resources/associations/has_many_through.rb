@@ -4,8 +4,6 @@ module Resources
     #
     # @api public
     class HasManyThrough < Abstract
-      # @!attribute [r] join_relation
-      #   @return [Relation] Intermediate join relation
       attr_reader :join_relation
 
       # @api private
@@ -14,10 +12,6 @@ module Resources
         @join_relation = through.relation
       end
 
-      # Adapters should implement this method
-      #
-      # @abstract
-      #
       # @api public
       def call(*)
         raise NotImplementedError
