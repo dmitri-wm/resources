@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 # domain: Change Events
-require_relative "monads/types"
 
 module Resources
   module Config

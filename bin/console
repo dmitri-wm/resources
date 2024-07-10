@@ -2,8 +2,7 @@
 begin
   require "irb"
 
-  require "active_record"
-  ActiveRecord::Base.establish_connection("postgresql://procore_db:postgres@localhost:5432/procore_development")
+  ENV["resources_env"] = "dev"
 
   require_relative "../lib/resources"
   Sequel.extension(:active_record_connection)
