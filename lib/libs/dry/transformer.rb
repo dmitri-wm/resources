@@ -16,7 +16,7 @@ module Dry
     # @api private
     def self.loader
       @loader ||= Zeitwerk::Loader.new.tap do |loader|
-        root = File.expand_path('..', __dir__)
+        root = File.expand_path('.', __dir__)
         loader.tag = 'dry-transformer'
         loader.inflector = Zeitwerk::GemInflector.new("#{root}/dry-transformer.rb")
         loader.push_dir(root)

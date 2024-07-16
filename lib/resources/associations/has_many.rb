@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'rom/associations/abstract'
-
 module Resources
   module Associations
     class BelongsTo < Abstract

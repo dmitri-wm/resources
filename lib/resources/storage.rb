@@ -52,7 +52,8 @@ module Resources
         option :key, Types::Coercible::Symbol | Types::Interface(:call), optional: true,
                                                                          comment: 'Attribute to use as key for hash store can be symbol or proc'
 
-        delegate :key?, to: :store
+        def_delegators :store, :key?, :values
+        def_delegators :values, :each
 
         alias fetch []
 
@@ -72,7 +73,7 @@ module Resources
       end
 
       class ArrayStore < Base
-        delegate :include?, to: :store
+        def_delegators :store, :include?, :each
 
         memoize def store = unique ? Set.new : []
 

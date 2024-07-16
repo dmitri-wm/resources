@@ -16,8 +16,7 @@ require_relative 'libs/sequel/core'
 require 'zeitwerk'
 loader = Zeitwerk::Loader.for_gem
 loader.ignore(Pathname.new("#{__dir__}/sequel"))
-loader.push_dir(Pathname.new("#{__dir__}/external"))
-loader.push_dir(Pathname.new("#{__dir__}/external/models"))
+loader.ignore(Pathname.new("#{__dir__}/dry"))
 
 loader.push_dir(Pathname.new("#{__dir__}/../spec/fixtures")) if RESOURCES_ENV.test
 

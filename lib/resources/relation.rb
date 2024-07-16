@@ -4,53 +4,108 @@
 
 module Resources
   class Relation
-    include Dry::Monads[:result, :maybe]
-    include ServiceCall
+    extend ClassInterface
+
+    extend Dry::Initializer
+    extend Dry::Core::ClassAttributes
+
     include Storage
-    include Lib::UseSortingService
-    include Lib::UseEntityMapper
-    include Lib::WhereQueries
-    include Lib::Pagination
-    include Lib::SelectableFields
-    include Lib::ArrayConversion
-    include Lib::Transformation
-    include Lib::Associations
+    include Memoizable
+    include Associations
+    include Forwardable
+    include Pipeline
 
-    use_sorting_service ->(*_) { raise 'You need to setup sorting service' }
-    default_entity_mapper Resources::Entities::Auto
+    EMPTY_HASH = {}.freeze
 
-    def initialize(context:)
-      @context = context
+    defines :auto_struct
+    defines :auto_map
+    defines :mappers
+
+    auto_map true
+    auto_struct false
+
+    forward :select, :where, :order, :limit, :offset, :paginate, to: :dataset
+
+    option :context
+    option :auto_map, default: -> { self.class.auto_map }
+    option :auto_struct, default: -> { self.class.auto_struct }
+    option :mappers, [Types::Service], default: -> { self.class.mappers }
+    option :meta, reader: true, default: -> { EMPTY_HASH }
+
+    def_delegators :context, :project_id, :company_id, :user_id
+
+    def new(dataset, **new_opts)
+      opts =
+        if new_opts.empty?
+          options
+        else
+          options.merge(new_opts)
+        end
+
+      self.class.new(dataset, **opts)
     end
 
-    delegate :project_id, :company_id, to: :context
-    attr_reader :context
-
-    def all
-      fetch.then(&to_view)
+    def to_a
+      to_enum.to_a
     end
 
-    def one
-      paginate(page: 1, per_page: 1).then(&method(:all)).first
+    def curried?
+      false
     end
 
-    def pluck(*args)
-      fetch.then(&to_pluckable).pluck(*args)
+    def graph?
+      false
     end
 
-    # @description this method should contain logic for fetching and transforming data
-    # @example
-    #   def fetch
-    #     base_query.
-    #     then(&method(:apply_filters))
-    #     then(&method(:apply_where)).
-    #     then(&method(:select_fields)).
-    #     then(&method(:sort_data)).
-    #     then(&method(:paginate_data))
-    #   end
-    # @return [Array]
-    def fetch
-      raise NotImplementedError, "Subclass #{self.class.name} must implement #fetch"
+    def with(opts)
+      new_options =
+        if opts.key?(:meta)
+          opts.merge(meta: meta.merge(opts[:meta]))
+        else
+          opts
+        end
+
+      new(dataset, **options, **new_options)
+    end
+
+    def associations
+      self.class.associations
+    end
+
+    def auto_map?
+      auto_map || auto_struct
+    end
+
+    def auto_struct?
+      auto_struct
+    end
+
+    def mapper
+      mappers[to_ast]
+    end
+
+    def map_with(*names, **opts)
+      super(*names).with(opts)
+    end
+
+    def map_to(klass, **opts)
+      with(opts.merge(auto_map: false, auto_struct: true, meta: { mapper: klass }))
+    end
+
+    def foreign_key(name)
+      attr = associations[name].foreign_key(name)
+
+      if attr
+        attr.name
+      else
+        :"#{Inflector.singularize(name)}_id"
+      end
+    end
+
+    memoize :auto_map?, :auto_struct?, :foreign_key, :combine, :node
+
+    def call
+      Loaded.new(self)
     end
   end
 end
