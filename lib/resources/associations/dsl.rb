@@ -2,115 +2,94 @@
 
 module Resources
   module Associations
-    def self.included(base)
-      base.include(AssociationsDSL)
-    end
-
-    module AssociationsDSL
+    module Dsl
       extend Concern
 
       included do
-        mstore :associations_store, unique: true, attribute: :name
+        include Storage
+        mstore :associations, attribute: :name, unique: true
+        # This creates a unique store for associations, keyed by name
       end
 
       class_methods do
-        def associations(&block)
-          DSL.call(self, &block)
+        def associate(&block)
+          # Example usage:
+          # class User
+          #   associate do
+          #     has_many :posts
+          #     belongs_to :company
+          #   end
+          # end
+          DSL.call(self, &block).then do |store|
+            store.each do |name, definition|
+              associations.add(definition)
 
-          associations_store.keys.each do |name|
-            define_method(name) do
-              associations_store[name].call(self)
+              define_method(name) do
+                associations[name].call
+              end
+              alias_method name.to_s.pluralize, name
+              # This creates methods like:
+              # user.posts and user.post
+              # user.company and user.companies (even though it's singular)
+              define_method(:associations) do
+                ->(name) { self.class.associations[name].build_association(source: self) }
+              end
             end
-            alias_method Inflector.singularize(name), name
           end
         end
       end
-      class DSL < BasicObject
+
+      class DSL
         def self.call(source, &block)
-          self.class.new(source, &block).store
+          new(source, &block).store
         end
 
         # @api private
         def initialize(source, &block)
           @source = source
-          @store = Store.build(attribute: :name, unique: true)
-          instance_exec(&block)
+          @store = Storage::Store.build(attribute: :name, unique: true)
+          instance_exec(&block) if block_given?
         end
 
-        attr_reader :source
+        attr_reader :source, :store
 
-        # Establish a one-to-many association
-        #
-        # @example using relation identifier
-        #   has_many :tasks
-        #
-        # @example setting custom foreign key name
-        #   has_many :tasks, foreign_key: :assignee_id
-        #
-        # @example with a :through option
-        #   # this establishes many-to-many association
-        #   has_many :tasks, through: :users_tasks
-        #
-        # @example using a custom view which overrides default one
-        #   has_many :posts, view: :published, override: true
-        #
-        # @example using aliased association with a custom view
-        #   has_many :posts, as: :published_posts, view: :published
-        #
-        # @example using custom target relation
-        #   has_many :user_posts, relation: :posts
-        #
-        # @example using custom target relation and an alias
-        #   has_many :user_posts, relation: :posts, as: :published, view: :published
-        #
-        # @param [Symbol] target The target relation identifier
-        # @param [Hash] options A hash with additional options
-        #
-        # @return [Associations::OneToMany]
-        #
-        # @see #many_to_many
-        #
-        # @api public
-        def has_many(target, **options)
+        def has_many(name, **options)
+          # Example: has_many :posts
+          # Example: has_many :comments, through: :posts, assoc_name: :comments, joinable:  true | false | array_to_sql | array, condition: -> { ... }
           if options[:through]
-            add(Definitions::HasManyThrough.new(source, target, **options))
+            add(Definitions::HasManyThrough.new(source:, through: options[:through], name:, **options))
           else
-            add(Definitions::HasMany.new(source, target, **options))
+            add(Definitions::HasMany.new(source:, name:, **options))
           end
         end
 
-        # @example with an alias (relation identifier is inferred via pluralization)
-        #   belongs_to :user
-        #
-        def belongs_to(target, **options)
-          add(Definitions::BelongsTo.new(source, dataset_name(target), **options))
+        def belongs_to(name, **options)
+          # Example: belongs_to :company
+          if options[:through]
+            add(Definitions::HasOneThrough.new(source:, name:, **options))
+          else
+            add(Definitions::BelongsTo.new(source:, name:, **options))
+          end
         end
 
-        # Shortcut for one_to_one which sets alias automatically
-        #
-        # @example with an alias (relation identifier is inferred via pluralization)
-        #   has_one :address
-        #
-        # @example with an explicit alias and a custom view
-        #   has_one :posts, as: :priority_post, view: :prioritized
-        def has_one(target, **options)
+        def has_one(name, **options)
+          # Example: has_one :profile
+          # Example: has_one :avatar, through: :profile
           if options[:through]
-            add(Definitions::HasOneThrough.new(source, target, **options))
+            add(Definitions::HasOneThrough.new(source:, name:, **options))
           else
-            add(Definitions::HasOne.new(source, target, **options))
+            add(Definitions::HasOne.new(source:, name:, **options))
           end
         end
 
         private
 
-        # @api private
         def add(association)
-          source.associations_store.add(association)
+          store.add(association)
         end
 
-        # @api private
         def dataset_name(name)
-          Inflector.pluralize(name).to_sym
+          name.pluralize.to_sym
         end
       end
     end

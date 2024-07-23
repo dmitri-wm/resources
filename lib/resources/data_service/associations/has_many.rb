@@ -1,0 +1,11 @@
+module Resources
+  module DataService
+    module Associations
+      class HasMany < Resources::Associations::HasMany
+        def call(target:)
+          target.where(foreign_key => source.pluck(:id))
+        end
+      end
+    end
+  end
+end

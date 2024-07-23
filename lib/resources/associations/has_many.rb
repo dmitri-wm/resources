@@ -2,13 +2,13 @@
 
 module Resources
   module Associations
-    class BelongsTo < Abstract
+    class HasMany < Abstract
       def call(*)
         raise NotImplementedError
       end
 
       def foreign_key
-        definition.foreign_key || target.foreign_key(source.name)
+        definition.foreign_key || "#{source.name}_id"
       end
 
       def associate(child, parent)
@@ -18,16 +18,10 @@ module Resources
 
       protected
 
-      # Return primary key on the source side
-      #
-      # @return [Symbol]
       def source_key
-        source.schema.primary_key_name
+        definition.primary_key
       end
 
-      # Return foreign key name on the target side
-      #
-      # @return [Symbol]
       def target_key
         foreign_key
       end

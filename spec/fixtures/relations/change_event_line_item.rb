@@ -1,16 +1,18 @@
 module Relations
-  class ChangeEventLineItem < Resources::Relations::Adapters::Sql
-    use_ar_model ::ChangeEventLineItem
+  class ChangeEventLineItem < Resources::Adapters::Ar
+    dataset ::ChangeEventLineItem
 
-    belongs_to :prime_pco_line_item,
-               foreign_key: :prime_potential_change_order_line_item_id,
-               relation: LineItem
-    belongs_to :commitment_pco_line_item,
-               foreign_key: :commitment_potential_change_order_line_item_id,
-               relation: LineItem
+    def change_orders = prime_line_items.holders.prime
+    def prime_line_items = line_items.where(id: prime_line_item_ids)
+    def prime_line_item_ids = pluck(:prime_potential_change_order_line_item_id)
 
-    belongs_to :prime_pco, through: :prime_pco_line_item, source: :holder
-    belongs_to :commitment_pco, through: :commitment_pco_line_item,
-                                source: :holder
+    def commitments = commitment_line_items.holders.commitment
+    def commitment_line_items = line_items.where(id: commitment_line_item_ids)
+
+    def commitment_line_item_ids
+      select('COALESCE(commitment_contract_line_item_id, commitment_potential_change_order_line_item_id) AS commitment_line_item_id').distinct.map(&:commitment_line_item_id)
+    end
+
+    def line_items = LineItem.new(context:)
   end
 end

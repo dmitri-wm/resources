@@ -1,5 +1,4 @@
 module Relations
-  class ChangeEvent < Resources::Relations::Adapters::Sql
-    use_ar_model ::ChangeEvent
+  class ChangeEvent < Resources::Adapters::Ar
   end
 end

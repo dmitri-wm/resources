@@ -5,7 +5,7 @@
 module Resources
   module Associations
     module Definitions
-      class HasOne < HasManyThrough
+      class HasOneThrough < HasManyThrough
         result :one
       end
     end

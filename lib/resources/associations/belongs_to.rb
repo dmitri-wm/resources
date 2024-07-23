@@ -2,13 +2,13 @@
 
 module Resources
   module Associations
-    class HasMany < Abstract
+    class BelongsTo < Abstract
       def call(*)
         raise NotImplementedError
       end
 
       def foreign_key
-        definition.foreign_key || source.foreign_key(target.name)
+        definition.foreign_key || "#{target.name}_id".to_sym
       end
 
       def associate(child, parent)

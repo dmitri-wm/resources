@@ -1,13 +1,13 @@
 module Relations
-  class LineItem < Resources::Relations::Adapters::Sql
-    use_ar_model ::LineItem
+  class LineItem < Resources::Adapters::Ar
+    dataset ::LineItem
 
-    belongs_to :potential_change_order,
-               foreign_key: :holder_id,
-               relation: PotentialChangeOrder
+    def holders = LineItemHolders.build(holders_set, **options)
 
-    belongs_to :contract,
-               foreign_key: :holder_id,
-               relation: Contract
+    def holders_set = holder_ids.reduce({}, &type_map)
+
+    def type_map =->(map, ids) { (map[ids.last] ||= []) << ids.first }
+
+    def holder_ids = pluck(:holder_id)
   end
 end

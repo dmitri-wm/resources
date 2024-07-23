@@ -1,23 +1,20 @@
+# frozen_string_literal: true
+
 module Resources
   module Sql
     module Associations
-      class BelongsTo < ::Resources::Associations::BelongsTo
+      class HasMany < Resources::Associations::HasMany
         include Associations::Core
 
-        # @api public
         def call(target: self.target)
-          relation = target.join(source_table, join_keys)
-
-          if view
-            apply_view(schema, relation)
-          else
-            schema.call(relation)
-          end
+          target.join(relation: source, join_keys: { target_key => source_key }).then(&method(:maybe_apply_view))
         end
 
-        # @api public
+        # @param [Symbol] type in [:join, :left_outer_join, :inner_join]
+        # @param [Resources::Relation] source
+        # @param [Resources::Relation] target
         def join(type, source = self.source, target = self.target)
-          source.__send__(type, target.name.dataset, join_keys).qualified
+          source.join(relation: target, join_keys:, type:)
         end
       end
     end

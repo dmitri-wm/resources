@@ -3,7 +3,7 @@
 # domain: Change Events
 
 module Resources
-  module Relations
+  module Associations
     module Definitions
       class Abstract
         extend Dry::Initializer
@@ -11,16 +11,18 @@ module Resources
 
         defines :result
 
-        option :source, Types::Inherited.from(Relation) # relation class that defines the association
-        option :target, Types::Inherited.from(Relation) # relation class that is associated with
+        option :source # relation class that defines the association
+        option :relation_name, Types::Symbol, optional: true # name of the relation
         option :name, Types::Symbol # name of the association
         option :result, Types::Strict::Symbol.enum(:one, :many), default: -> { self.class.result } # result type
-        option :type, Types::Symbol.enum(:belongs_to, :has_many, :has_one) # type of the association
         option :foreign_key, Types::Symbol, optional: true
-        option :primary_key, Types::Symbol.default(:id), optional: true
-        option :through, Types::Symbol, optional: true
+        option :primary_key, Types::Symbol, default: -> { :id }
+        option :through, optional: true
         option :view, Types::Symbol, optional: true
         option :combine_keys, optional: true
+        option :condition, Types::Interface(:call), optional: true
+        option :polymorphic, default: -> { false }
+        option :as, Types::Symbol, optional: true
 
         def self.new(**opts)
           options = process_options(Hash[opts])
@@ -28,17 +30,38 @@ module Resources
           super(**options)
         end
 
-        # @api private
         def self.process_options(options)
-          target = options[:target]
-          through = options[:through]
+          options[:relation_name] = options.delete(:relation) if options.key?(:relation)
 
-          options[:through] = ThroughIdentifier[through, target, options[:assoc]] if through
+          ThroughIdentifier[*options.values_at(:source, :name, :through, :assoc_name)] do |settings|
+            options[:through] = settings
+          end
 
-          options[:name] = target
+          PolymorphicIdentifier[*options.values_at(:source, :polymorphic, :as, :name)] do |settings|
+            options[:polymorphic] = settings
+          end
 
           options
         end
+
+        def target
+          TargetIdentifier[name, relation_name]
+        end
+
+        def build_association(source:)
+          "::Resources::#{source.class.adapter.to_s.classify}::Associations::#{self.class.name.demodulize}"
+            .constantize.new(self, source:, target: target.new(context: source.context))
+        end
+
+        def call_association(source:)
+          build_association(source:).call
+        end
+
+        def join_association(source:)
+          build_association(source:).join
+        end
+
+        # memoize :target
       end
     end
   end

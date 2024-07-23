@@ -6,6 +6,10 @@ module Resources
   module Sql
     module Relation
       class ActiveRecord < Resources::Relation
+        adapter :sql
+
+        relation_name :active_record
+
         class << self
           attr_accessor :ar_model, :context_columns
 
@@ -14,9 +18,19 @@ module Resources
             self.context_columns = ar_model.column_names.map(&:to_sym) & %i[company_id project_id]
           end
         end
-        def_delegators :class, :ar_model, :context_columns
+        delegate :ar_model, :context_columns, to: :class
 
-        dataset { Dataset.call(base_query) }
+        option :dataset, default: -> { Dataset.new(base_query) }
+
+        # methods which changes dataset or produces new dataset collection should be forwarderd
+        forward(*Dataset::QUERY_METHODS, to: :dataset)
+        # methods which fetch single resource or collection of resources from datasource
+        # should be loaded on dataset it will be transformed to resource or collection relations
+        load_on :find, :find_by, :take, :find_sole_by, :first, :last
+
+        # other methods which returns number / boolean / nill / array of numbers / booleans
+        # should be loaded on dataset and returned without loading relation collections
+        delegate :exists?, :any?, :many?, :none?, :one?, :count, :average, :minimum, :maximum, :sum, :calculate, to: :dataset
 
         def context_conditions
           {

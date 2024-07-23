@@ -5,7 +5,7 @@
 module Resources
   module Associations
     module Definitions
-      class Belongs < Abstract
+      class BelongsToThrough < HasManyThrough
         result :one
       end
     end

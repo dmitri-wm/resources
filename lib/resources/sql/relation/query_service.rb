@@ -3,21 +3,27 @@
 # domain: Change Events
 
 module Resources
-  module Relation
-    # This module provides a way to use a filter service in the adapter.
-    # It allows setting a filter service for the class and a custom filter service for a specific instance.
-    # The filter service can be a class or a proc that accepts a single argument and returns the filtered data.
-    class QueryService < ::Resources::Relation
-      extend Concern
+  module Sql
+    module Relation
+      class QueryService < ActiveRecord
+        class << self
+          attr_accessor :query_service
 
-      defines :service
+          def use_query_service(service)
+            self.query_service = service
+          end
+        end
 
-      option :filters
+        option :filters, Hash, default: -> { {} }
+        option :dataset, default: -> { Dataset.new(base_query) }
 
-      dataset { Dataset.new(base_query) }
+        def filter(filters)
+          new(filters: filters.merge(filters))
+        end
 
-      def base_query
-        service.call(context)
+        def base_query
+          query_service.call(context:, filters:).query
+        end
       end
     end
   end

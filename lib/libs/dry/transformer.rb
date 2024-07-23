@@ -15,19 +15,19 @@ module Dry
 
     # @api private
     def self.loader
-      @loader ||= Zeitwerk::Loader.new.tap do |loader|
-        root = File.expand_path('.', __dir__)
-        loader.tag = 'dry-transformer'
-        loader.inflector = Zeitwerk::GemInflector.new("#{root}/dry-transformer.rb")
-        loader.push_dir(root)
-        loader.ignore(
-          "#{root}/dry-transformer.rb",
-          "#{root}/dry/transformer/{constants,error,version}.rb"
-        )
-        loader.inflector.inflect('dsl' => 'DSL')
-      end
+      # @loader ||= Zeitwerk::Loader.new.tap do |loader|
+      #   root = File.expand_path('.', __dir__)
+      #   loader.tag = 'dry-transformer'
+      #   loader.inflector = Zeitwerk::GemInflector.new("#{root}/dry-transformer.rb")
+      #   loader.push_dir(root)
+      #   loader.ignore(
+      #     "#{root}/dry-transformer.rb",
+      #     "#{root}/dry/transformer/{constants,error,version}.rb"
+      #   )
+      #   loader.inflector.inflect('dsl' => 'DSL')
+      # end
     end
 
-    loader.setup
+    # loader.setup
   end
 end

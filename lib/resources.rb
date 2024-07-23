@@ -10,21 +10,26 @@ require 'dry-monads'
 require 'dry-struct'
 require 'dry-types'
 require 'dry-initializer'
-require_relative 'libs/dry/transformer'
-require_relative 'libs/sequel/core'
+# require_relative 'libs/dry/transformer'
+# require_relative 'libs/sequel/core'
 
 require 'zeitwerk'
 loader = Zeitwerk::Loader.for_gem
-loader.ignore(Pathname.new("#{__dir__}/sequel"))
-loader.ignore(Pathname.new("#{__dir__}/dry"))
 
-loader.push_dir(Pathname.new("#{__dir__}/../spec/fixtures")) if RESOURCES_ENV.test
+loader.ignore(Pathname.new("#{__dir__}/libs"))
+loader.ignore("#{__dir__}/config.rb")
+loader.collapse(Pathname.new("#{__dir__}/resources/support"))
+loader.ignore(Pathname.new("#{__dir__}/config.rb"))
+loader.ignore(Pathname.new("#{__dir__}/bad_code_examples"))
 
+if RESOURCES_ENV.test
+  loader.push_dir(Pathname.new("#{__dir__}/../spec/fixtures"))
+  loader.collapse(Pathname.new("#{__dir__}/../spec/fixtures/models"))
+end
 loader.setup
 
 module Resources
-  include Config
-
-  class Error < StandardError; end
-  # Your code goes here...
+  module Types
+    include Dry.Types()
+  end
 end

@@ -10,7 +10,7 @@ module Resources
 
         included do
           defines :sorting_service
-          def_delegators :class, :sorting_service
+          delegate :sorting_service, to: :class
 
           sorting_service ->(relation, sorting_params) { relation.dataset.order(sorting_params) }
         end

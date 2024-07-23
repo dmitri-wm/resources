@@ -26,6 +26,9 @@ gem 'oj'
 gem 'rom-core'
 gem 'ruby-lsp', require: false, group: :development
 gem 'ruby-lsp-rspec', require: false, group: :development
+gem 'sqlite3', '~> 1.4'
 gem 'zeitwerk'
 
+gem 'dry-configurable'
 gem 'dry-transformer'
+gem 'remap'

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Resources
   module Associations
     # Abstract many-to-many association type
@@ -7,9 +9,9 @@ module Resources
       attr_reader :join_relation
 
       # @api private
-      def initialize(*)
+      def initialize(...)
         super
-        @join_relation = through.relation
+        @join_relation = through.join_association
       end
 
       # @api public
@@ -55,6 +57,25 @@ module Resources
         end
       end
 
+      # @description
+      #   Returns the join key map for the association.
+      #   The join key map is an array of arrays, where each inner array
+      #   represents the join key for the associations
+      # @example
+      #   class Parent
+      #     has_many :children
+      #     has_many :grand_children, through: :children
+      #   end
+      #   class Child
+      #     belongs_to :parent
+      #     has_many :grand_children
+      #   end
+      #   class GrandChild
+      #     belongs_to :child
+      #   end
+      #   Parent.associations[:children].join_key_map => [[:parent_id, :child_id]]
+      #   Child.associations[:grand_children].join_key_map => [[:child_id, :grand_child_id]]
+      #   Parent.associations[:grand_children].join_key_map => [[:parent_id, :child_id], [:child_id, :grand_child_id]]
       def join_key_map
         left = super
         right = join_assoc.join_key_map

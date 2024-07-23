@@ -5,3 +5,15 @@ Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 Style/Documentation:
   Enabled: false
+Layout/LineLength:
+  Enabled: false
+Metrics/BlockLength:
+  Enabled: false
+Lint/ConstantDefinitionInBlock:
+  Enabled: false
+MultilineBlockChain:
+  Enabled: false
+Rubocop/HashSyntax:
+  Enabled: false
+Naming/PredicateName:
+  Enabled: false
