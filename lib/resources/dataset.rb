@@ -5,7 +5,7 @@
 module Resources
   class Dataset
     extend Forwardable
-    extend Initializer
+    extend Dry::Initializer
     extend Dry::Core::ClassAttributes
 
     # @!attribute [r] adapter

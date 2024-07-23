@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require_relative '../spec_helper'
 
 RSpec.describe Resources::Associations::HasMany do
   let(:definition) { double('definition') }

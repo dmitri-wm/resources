@@ -1,7 +1,7 @@
 module Resources
   module DataService
     module Associations
-      class HasOne < HasMany
+      class HasOneThrough < HasManyThrough
       end
     end
   end

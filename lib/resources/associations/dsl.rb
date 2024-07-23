@@ -2,6 +2,7 @@
 
 module Resources
   module Associations
+    # DSL module for defining associations in resources
     module Dsl
       extend Concern
 
@@ -12,14 +13,16 @@ module Resources
       end
 
       class_methods do
+        # Defines associations for a resource
+        #
+        # @example
+        #   class User
+        #     associate do
+        #       has_many :posts
+        #       belongs_to :company
+        #     end
+        #   end
         def associate(&block)
-          # Example usage:
-          # class User
-          #   associate do
-          #     has_many :posts
-          #     belongs_to :company
-          #   end
-          # end
           DSL.call(self, &block).then do |store|
             store.each do |name, definition|
               associations.add(definition)
@@ -31,15 +34,23 @@ module Resources
               # This creates methods like:
               # user.posts and user.post
               # user.company and user.companies (even though it's singular)
-              define_method(:associations) do
-                ->(name) { self.class.associations[name].build_association(source: self) }
-              end
+            end
+
+            # Define a method to access associations
+            define_method(:associations) do
+              ->(name) { self.class.associations[name].build_association(source: self) }
             end
           end
         end
       end
 
+      # Internal DSL class for processing association definitions
       class DSL
+        # Executes the DSL block and returns the resulting store
+        #
+        # @param source [Class] The class defining the associations
+        # @yield The block containing association definitions
+        # @return [Storage::Store] The store containing the defined associations
         def self.call(source, &block)
           new(source, &block).store
         end
@@ -53,9 +64,14 @@ module Resources
 
         attr_reader :source, :store
 
+        # Defines a has_many association
+        #
+        # @param name [Symbol] The name of the association
+        # @param options [Hash] Additional options for the association
+        # @example
+        #   has_many :posts
+        #   has_many :comments, through: :posts, assoc_name: :comments, joinable: true, condition: -> { ... }
         def has_many(name, **options)
-          # Example: has_many :posts
-          # Example: has_many :comments, through: :posts, assoc_name: :comments, joinable:  true | false | array_to_sql | array, condition: -> { ... }
           if options[:through]
             add(Definitions::HasManyThrough.new(source:, through: options[:through], name:, **options))
           else
@@ -63,8 +79,13 @@ module Resources
           end
         end
 
+        # Defines a belongs_to association
+        #
+        # @param name [Symbol] The name of the association
+        # @param options [Hash] Additional options for the association
+        # @example
+        #   belongs_to :company
         def belongs_to(name, **options)
-          # Example: belongs_to :company
           if options[:through]
             add(Definitions::HasOneThrough.new(source:, name:, **options))
           else
@@ -72,9 +93,14 @@ module Resources
           end
         end
 
+        # Defines a has_one association
+        #
+        # @param name [Symbol] The name of the association
+        # @param options [Hash] Additional options for the association
+        # @example
+        #   has_one :profile
+        #   has_one :avatar, through: :profile
         def has_one(name, **options)
-          # Example: has_one :profile
-          # Example: has_one :avatar, through: :profile
           if options[:through]
             add(Definitions::HasOneThrough.new(source:, name:, **options))
           else
@@ -84,10 +110,17 @@ module Resources
 
         private
 
+        # Adds an association to the store
+        #
+        # @param association [Object] The association object to add
         def add(association)
           store.add(association)
         end
 
+        # Returns the pluralized name of a dataset
+        #
+        # @param name [Symbol, String] The name to pluralize
+        # @return [Symbol] The pluralized name as a symbol
         def dataset_name(name)
           name.pluralize.to_sym
         end

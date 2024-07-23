@@ -2,7 +2,7 @@ module Resources
   module DataService
     module Associations
       class HasMany < Resources::Associations::HasMany
-        def call(target:)
+        def call(target: self.target)
           target.where(foreign_key => source.pluck(:id))
         end
       end

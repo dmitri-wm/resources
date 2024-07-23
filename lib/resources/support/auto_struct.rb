@@ -14,6 +14,10 @@ module Resources
       super || instance_variables.include?(IVAR[meth])
     end
 
+    def [](key)
+      send(key)
+    end
+
     private
 
     def method_missing(meth, *args, &block)

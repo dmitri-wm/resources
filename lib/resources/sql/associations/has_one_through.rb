@@ -3,6 +3,7 @@
 module Resources
   module Sql
     module Associations
+      # HasOneThrough class represents a has-one-through association in SQL
       class HasOneThrough < HasManyThrough
       end
     end

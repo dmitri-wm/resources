@@ -9,9 +9,6 @@ module Resources
 
     include Memoizable
 
-    # Extends the class with data-proxy behavior
-    #
-    # @api private
     def self.included(klass)
       klass.class_eval do
         extend Dry::Initializer

@@ -11,7 +11,7 @@ module Resources
       # @api private
       def initialize(...)
         super
-        @join_relation = through.join_association
+        @join_relation = through.join_relation
       end
 
       # @api public

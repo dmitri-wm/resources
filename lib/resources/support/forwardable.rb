@@ -1,7 +1,16 @@
 # frozen_string_literal: true
 
 module Resources
+  # The Forwardable module provides methods to easily delegate method calls
+  # to another object or to load data from a dataset.
   module Forwardable
+    # Forwards method calls to another object and wraps the result in a new instance.
+    #
+    # @param methods [Array<Symbol>] The methods to be forwarded.
+    # @param to [Symbol] The name of the method that returns the object to forward to.
+    #
+    # @example
+    #   forward :count, :size, to: :array
     def forward(*methods, to:)
       methods.each do |method|
         define_method(method) do |*args, **kwargs, &block|
@@ -16,13 +25,14 @@ module Resources
       end
     end
 
-    # @param methods [Array<Symbol>]
+    # Defines methods that load data from a dataset and wrap the result in a new instance.
+    #
+    # @param methods [Array<Symbol>] The methods to be defined for loading data.
+    #
     # @example
-    #   load_on :find, from: :dataset
     #   load_on :find, :find_by, from: :dataset
-    # Relation.find(1)
-    # Will firstly fetch it from dataset and then pass to
-    #  relation transfomator / mapper
+    #   # This allows calling Relation.find(1), which will fetch from dataset
+    #   # and pass to relation transformer/mapper
     def load_on(*methods)
       methods.each do |method|
         define_method(method) do |*args, **kwargs, &block|

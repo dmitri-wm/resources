@@ -33,6 +33,7 @@ module Resources
     adapter -> { :default }
 
     option :context
+    # @!attribute [r] dataset
     option :dataset, default: -> { self.class.dataset.new }
     option :auto_map, default: -> { self.class.auto_map }
     option :auto_struct, default: -> { self.class.auto_struct }
@@ -40,7 +41,7 @@ module Resources
     option :meta, reader: true, default: -> { EMPTY_HASH }
 
     delegate :project_id, :company_id, :user_id, to: :context
-    delegate :to_sql, :pluck, to: :dataset
+    delegate :pluck, to: :dataset
     delegate :adapter, to: :class
     def foreign_key_values(key)
       pluck(key)
@@ -118,14 +119,14 @@ module Resources
     end
 
     def join(relation:, join_keys: {}, type: :inner)
-      if adapter != relation.adapter
+      if use_graph_join?(relation)
         to_graph.join(relation, join_keys, type)
       else
         with(dataset: dataset.join(dataset: relation.dataset, join_keys:, type:))
       end
     end
 
-    def incompatible_adapter?(*_relations)
+    def use_graph_join?(relation)
       adapter != relation.adapter
     end
 

@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+a # frozen_string_literal: true
 module Resources
   module Concern
     class MultipleIncludedBlocks < StandardError # :nodoc:
@@ -106,4 +106,3 @@ module Resources
     end
   end
 end
-

@@ -1,16 +1,22 @@
 class Graph < Dataset
   extend Dry::Initializer
 
-  # @!method initialize
-  # @!attribute relation
+  # @!attribute [r] relation
   option :relation
-  # @!attribute nodes
+  # @!attribute [r] nodes
   option :nodes, default: -> { [] }
-  # @!attribute join_keys
+  # @!attribute [r] join_keys
   option :join_keys, default: -> { {} }
+  # @!attribute [r] filters
+  option :filters, default: -> { {} }
 
+  # Joins a relation to the graph
+  #
+  # @param relation [Symbol, Object] The relation to join
+  # @param join_keys [Hash] The keys to use for joining
+  # @return [Graph] A new Graph instance with the joined relation
   def join(relation, join_keys = {})
-    new_node = self.class.new(relation:, join_keys:)
+    new_node = self.class.new(relation: relation, join_keys: join_keys)
 
     self.class.new(
       **options,
@@ -18,59 +24,63 @@ class Graph < Dataset
     )
   end
 
+  # Performs multiple joins on the graph
+  #
+  # @param args [Array<Symbol, Hash>] The relations to join
+  # @param type [Symbol] The type of join to perform
+  # @return [Graph] A new Graph instance with the joined relations
+  # @raise [ArgumentError] If an unsupported argument type is provided
   def joins(*args, type: :inner)
     args.reduce(self) do |result, relation|
       case relation
       when Symbol
-        result.join(relation:, type:)
+        result.join(relation: relation, type: type)
       when Hash
-        relations.reduce(self) do |result, (relation, nested_relations)|
-          new_node = if nested_relations.is_a?(Hash) && nested_relations.key?(:join_keys)
-                       join_keys = nested_relations.delete(:join_keys)
-                       result.join(relation:, join_keys:, type:)
-                     else
-                       result.join(relation:, type:)
-                     end
-          if nested_relations && !nested_relations.empty?
-            new_node.nodes.last.joins(nested_relations)
-          else
-            new_node
-          end
-        end
+        join_hash(result, relation, type)
       else
-        raise ArgumentError, "Unsupported argument type for joins: #{relations.class}"
+        raise ArgumentError, "Unsupported argument type for joins: #{relation.class}"
       end
     end
   end
 
-  def node(name, &block)
-    new_nodes = update_nodes(name, &block)
-    self.class.new(
-      relation_name: relation_name,
-      datasource: datasource,
-      join_keys: join_keys,
-      nodes: new_nodes
-    )
-  end
-
+  # Applies a where condition to the graph
+  #
+  # @param conditions [Hash] The conditions to apply
+  # @return [Graph] A new Graph instance with the applied conditions
   def where(conditions)
     self.class.new(
-      relation_name: relation_name,
-      datasource: datasource,
-      join_keys: join_keys,
-      nodes: nodes,
+      **options,
       filters: filters.merge(conditions)
     )
   end
 
+  # Executes the graph query
+  #
+  # @return [Object] The result of the graph query
   def call
-    join_nested(datasource)
+    join_nested(relation)
   end
 
   private
 
-  def join_nested(current_datasource)
-    nodes.reduce(current_datasource) do |result, node|
+  def join_hash(result, relations, type)
+    relations.reduce(result) do |acc, (relation, nested_relations)|
+      new_node = if nested_relations.is_a?(Hash) && nested_relations.key?(:join_keys)
+                   join_keys = nested_relations.delete(:join_keys)
+                   acc.join(relation: relation, join_keys: join_keys, type: type)
+                 else
+                   acc.join(relation: relation, type: type)
+                 end
+      if nested_relations && !nested_relations.empty?
+        new_node.nodes.last.joins(nested_relations)
+      else
+        new_node
+      end
+    end
+  end
+
+  def join_nested(current_relation)
+    nodes.reduce(current_relation) do |result, node|
       joined = efficient_join(result, node)
       node.nodes.empty? ? joined : node.join_nested(joined)
     end
@@ -87,7 +97,11 @@ class EfficientJoin
   option :left
   option :right
   option :join_keys
+  option :filters, default: -> { {} }
 
+  # Executes the join and returns the result as an array
+  #
+  # @return [Array] The result of the join operation
   def to_a
     left_keys = extract_keys_from_left
     right_data = fetch_right_data(left_keys)
@@ -105,8 +119,22 @@ class EfficientJoin
   end
 
   def join_data(left_keys, right_data)
-    # this logic should be handled in dataset?
-    # when left is sql we need right data convert to sql
-    # when left is service_datasource we need right data convert array of hashes
+    if left.is_a?(SQL::Dataset)
+      join_sql_data(left_keys, right_data)
+    elsif left.is_a?(ServiceDatasource)
+      join_service_data(left_keys, right_data)
+    else
+      raise NotImplementedError, "Unsupported left datasource type: #{left.class}"
+    end
+  end
+
+  def join_sql_data(left_keys, right_data)
+    # TODO: Implement SQL join logic
+    raise NotImplementedError, 'SQL join not implemented yet'
+  end
+
+  def join_service_data(left_keys, right_data)
+    # TODO: Implement service datasource join logic
+    raise NotImplementedError, 'Service datasource join not implemented yet'
   end
 end

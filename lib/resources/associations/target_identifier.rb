@@ -21,6 +21,7 @@ module Resources
       # @param name [Symbol] The name of the association
       # @param relation [Class, Symbol, String, nil] The relation to resolve
       # @return [Class] The resolved relation class
+      # @raise [ArgumentError] If the relation cannot be resolved
       def resolve_target(name, relation)
         case relation
         when nil             then infer_target_from_name(name)

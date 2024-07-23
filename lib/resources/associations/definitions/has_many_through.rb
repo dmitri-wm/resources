@@ -5,6 +5,7 @@
 module Resources
   module Associations
     module Definitions
+      # Defines a has_many association through another association
       class HasManyThrough < Abstract
         result :many
 
@@ -19,6 +20,11 @@ module Resources
         def through_assoc_name
           through.assoc_name
         end
+
+        # Example:
+        # class Author
+        #   has_many_through :comments, through: :posts
+        # end
       end
     end
   end

@@ -11,6 +11,7 @@ gem 'rubocop', '~> 1.21'
 
 gem 'activerecord', '~> 7.0.8.1'
 gem 'pg', '~> 1.3.5'
+gem 'sqlite3', '~> 1.4'
 
 gem 'dry-monads'
 gem 'dry-struct'
@@ -23,12 +24,6 @@ group :test do
   gem 'test-prof'
 end
 gem 'oj'
-gem 'rom-core'
 gem 'ruby-lsp', require: false, group: :development
 gem 'ruby-lsp-rspec', require: false, group: :development
-gem 'sqlite3', '~> 1.4'
 gem 'zeitwerk'
-
-gem 'dry-configurable'
-gem 'dry-transformer'
-gem 'remap'

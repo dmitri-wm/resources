@@ -23,6 +23,7 @@ loader.ignore(Pathname.new("#{__dir__}/config.rb"))
 loader.ignore(Pathname.new("#{__dir__}/bad_code_examples"))
 
 if RESOURCES_ENV.test
+  loader.push_dir(Pathname.new("#{__dir__}/spec"))
   loader.push_dir(Pathname.new("#{__dir__}/../spec/fixtures"))
   loader.collapse(Pathname.new("#{__dir__}/../spec/fixtures/models"))
 end
