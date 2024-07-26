@@ -13,3 +13,9 @@
 .rspec_status
 /.vscode/launch.json
 /.vscode/tasks.json
+
+.editorconfig
+
+.DS_Store
+
+.vscode/

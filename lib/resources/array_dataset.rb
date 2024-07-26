@@ -171,7 +171,42 @@ module Resources
       data.each { |tuple| block.call(row_proc.call(tuple)) }
     end
 
-    delegate :count, :first, :last, :size, to: :data
+    def paginate(page:, per_page:)
+      return self if [page, per_page].any?(&:nil?)
+
+      offset = (page - 1) * per_page
+      last_index = offset + per_page < size ? offset + per_page : size
+
+      values_at(offset...last_index)
+    end
+
+    def pluck(*keys)
+      if keys.size == 1
+        key = keys.first
+        data.map { |item| item[key] }
+      else
+        data.map { |item| item.values_at(*keys) }
+      end
+    end
+
+    def with(datasource)
+      self.class.new(datasource)
+    end
+
+    %i[size first last size values_at].each do |method_name|
+      define_method(method_name) do |*args, &block|
+        response = data.public_send(method_name, *args, &block)
+
+        if response.equal?(data)
+          self
+        elsif response.is_a?(data.class)
+          with(response)
+        else
+          response
+        end
+      end
+    end
+    alias count size
 
     %i[
       chunk collect collect_concat drop_while find_all flat_map
@@ -182,15 +217,7 @@ module Resources
       define_method(method) do |*args, &block|
         return to_enum unless block
 
-        response = data.public_send(method, *args, &block)
-
-        if response.equal?(data)
-          self
-        elsif response.is_a?(data.class)
-          self.class.new(response)
-        else
-          response
-        end
+        with(data.public_send(method, *args, &block))
       end
     end
   end

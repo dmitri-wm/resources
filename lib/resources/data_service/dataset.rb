@@ -11,7 +11,7 @@ module Resources
       FIRST_PAGE = 1
       DEFAULT_PER_PAGE = 10
       SUPPORTED_SERVICE_METHODS = %i[filter paginate order].freeze
-      QUERY_METHODS = SUPPORTED_SERVICE_METHODS + %i[where exists? count]
+      QUERY_METHODS = SUPPORTED_SERVICE_METHODS + %i[where]
 
       adapter :data_service
 

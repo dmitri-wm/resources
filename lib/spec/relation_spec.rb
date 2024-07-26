@@ -2,7 +2,7 @@
 
 require_relative './spec_helper'
 
-RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
+RSpec.describe Resources::Relation, type: :integration do
   before(:all) do
     ActiveRecord::Schema.define do
       create_table :companies do |t|
@@ -204,6 +204,12 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
       it 'supports order clauses' do
         expect(relation.order(name: :desc).to_a.map(&:name)).to eq(['Test Project', 'Other Project'])
         expect(relation.order(name: :asc).to_a.map(&:name)).to eq(['Other Project', 'Test Project'])
+      end
+
+      it 'supports pagination' do
+        expect(relation.paginate(page: 1, per_page: 1).to_a.map(&:name)).to eq(['Test Project'])
+        expect(relation.paginate(page: 2, per_page: 1).to_a.map(&:name)).to eq(['Other Project'])
+        expect(relation.paginate(page: 1, per_page: 4).to_a.map(&:name)).to eq(['Test Project', 'Other Project'])
       end
 
       it 'supports joins' do

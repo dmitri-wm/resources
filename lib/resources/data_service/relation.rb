@@ -28,30 +28,23 @@ module Resources
       defines :dataset_class
       dataset_class Dataset
 
-      # Define service_call, dataset_config, and supports
-      # These can be set in subclasses to customize behavior
-      defines :service_call, :dataset_config, :supports
-
-      # @!attribute [r] dataset
-      #   @return [Dataset] The dataset instance
-      option :dataset, default: -> { initialize_dataset }
-
-      # @!attribute [r] supported_query
-      #   @return [Array<Symbol>] List of supported query methods
-      option :supported_query, default: -> { [] }
-
       # Default service call implementation
       # This can be overridden in subclasses for custom data fetching logic
       # Usage:
       #   service_call do |data_service_instance, options|
       #     data_service_instance.find_some(filter: options[:filters]).value!
       #   end
+      defines :service_call, :dataset_config, :supports
       service_call ->(dataset) { dataset.datasource.to_a }
 
       # Define supported query methods
       # Usage: supports :paginate, :filter, :order
       defines :supports
       supports Types::Array.of(Types::Symbol.enum(:order, :filter, :paginate))
+
+      # @!attribute [r] dataset
+      #   @return [Dataset] The dataset instance
+      option :dataset, default: -> { initialize_dataset }
 
       # Convert a record to a struct
       # @param data [Hash] The record to be converted
@@ -67,7 +60,7 @@ module Resources
       end
 
       delegate :service_call, :dataset_class, :dataset_config, :relation_name, :data_service, to: :class
-      delegate :pluck, to: :dataset
+      delegate :pluck, :count, :exists?, to: :dataset
       forward(*Dataset::QUERY_METHODS, to: :dataset)
 
       private
