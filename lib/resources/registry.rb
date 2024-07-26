@@ -78,7 +78,7 @@ module Resources
           define_method registry_name do
             registry_class
           end
-          alias_method into, registry_name
+          alias_method :into, registry_name
 
           # Defines a method to retrieve items from the registry
           # Example: Parent[:happy] # => Happy
@@ -89,10 +89,14 @@ module Resources
           # Defines a method to set or get the registry key
           # Example: Ugly.childgarden_name(:handsome)
           define_method key_resolve_override do |val = nil|
-            return instance_variable_get(:@registry_key) if val.nil?
+            return registry_key if registry_key.present? || val.nil?
 
             resolved_key = val.respond_to?(:call) ? instance_exec(&val) : val
             set_registry_key(resolved_key)
+          end
+
+          define_method :registry_key do
+            instance_variable_get(:@registry_key)
           end
 
           # Defines a method to set the registry key
@@ -106,8 +110,22 @@ module Resources
           define_method :inherited do |subclass|
             super(subclass)
 
-            resolved_key = subclass.instance_exec(&default)
-            subclass.public_send(:set_registry_key, resolved_key)
+            puts "inherited #{subclass}"
+            # Schedule the callback to be executed after the class definition is complete
+            TracePoint.new(:end) do |tp|
+              if tp.self == subclass
+                puts "Resolved: #{subclass}"
+                puts "Key: #{subclass.registry_key}"
+
+                next if subclass.registry_key.present?
+
+                puts "sending default to #{subclass}"
+                puts "sending default to #{subclass.instance_exec(&default)}"
+                subclass.public_send(key_resolve_override, default)
+
+                tp.disable
+              end
+            end.enable
           end
         end
       end

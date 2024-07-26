@@ -12,7 +12,7 @@ module Resources
       # to automatically define the `with` method.
       #
       # @param args Arguments passed to Dry::Initializer's `param` method
-      def param(*args)
+      def param(...)
         super.tap { __define_with__ }
       end
 
@@ -20,7 +20,7 @@ module Resources
       # to automatically define the `with` method if it doesn't exist.
       #
       # @param args Arguments passed to Dry::Initializer's `option` method
-      def option(*args)
+      def option(...)
         super.tap do
           __define_with__ unless method_defined?(:with)
         end
@@ -34,19 +34,20 @@ module Resources
                     .definitions
                     .reject { |_, d| d.option }
                     .keys
-                    .join(', ')
-
-        seq_names << ', ' unless seq_names.empty?
 
         undef_method(:with) if method_defined?(:with)
 
         class_eval(<<-RUBY, __FILE__, __LINE__ + 1)
-          def with(**new_options)
-            if new_options.empty?
-              self
-            else
-              self.class.new(#{seq_names}**options, **new_options)
-            end
+           def with(**new_options)
+            return self if new_options.empty?
+
+            current_values = {}
+            #{seq_names.map { |name| "current_values[:#{name}] = #{name}" }.join("\n      ")}
+          #{"  "}
+            new_seq_args = []
+            #{seq_names.map { |name| "new_seq_args << (new_options.key?(:#{name}) ? new_options.delete(:#{name}) : current_values[:#{name}])" }.join("\n      ")}
+
+            self.class.new(*new_seq_args, **options, **new_options)
           end
         RUBY
       end
@@ -69,16 +70,14 @@ module Resources
       #
       # @return [Hash] A hash containing all initialized options
       def options
-        @__options__ ||= self.class.dry_initializer.definitions.values.each_with_object({}) do |item, obj|
+        @__options__ ||= self.class.dry_initializer
+                             .definitions
+                             .select { |_, d| d.option }
+                             .values
+                             .each_with_object({}) do |item, obj|
           obj[item.target] = instance_variable_get(item.ivar)
         end
       end
-
-      # Ensure proper behavior of `class` method
-      define_method(:class, Kernel.instance_method(:class))
-
-      # Ensure proper behavior of `instance_variable_get` method
-      define_method(:instance_variable_get, Kernel.instance_method(:instance_variable_get))
 
       # Extends the `freeze` method to ensure options are calculated before freezing.
       #

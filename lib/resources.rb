@@ -10,7 +10,9 @@ require 'dry-monads'
 require 'dry-struct'
 require 'dry-types'
 require 'dry-initializer'
-# require_relative 'libs/dry/transformer'
+require 'awesome_print'
+AwesomePrint.irb!
+AwesomePrint.pry!
 # require_relative 'libs/sequel/core'
 
 require 'zeitwerk'

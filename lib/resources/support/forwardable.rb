@@ -14,11 +14,12 @@ module Resources
     def forward(*methods, to:)
       methods.each do |method|
         define_method(method) do |*args, **kwargs, &block|
-          send(to).send(method, *args, **kwargs, &block).then do |result|
-            if respond_to?(:options)
-              self.class.new(**options, to => result)
+          acceptor = send(to)
+          acceptor.send(method, *args, **kwargs, &block).then do |result|
+            if respond_to?(:with)
+              send(:with, to => result)
             else
-              self.class.new(result)
+              self.class.new(**options, to => result)
             end
           end
         end
@@ -30,7 +31,7 @@ module Resources
     # @param methods [Array<Symbol>] The methods to be defined for loading data.
     #
     # @example
-    #   load_on :find, :find_by, from: :dataset
+    #   load_on :find, :find_by
     #   # This allows calling Relation.find(1), which will fetch from dataset
     #   # and pass to relation transformer/mapper
     def load_on(*methods)

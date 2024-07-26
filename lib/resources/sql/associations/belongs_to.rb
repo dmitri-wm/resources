@@ -12,7 +12,7 @@ module Resources
         # @param target [Resources::Relation] The target relation (default: self.target)
         # @return [Resources::Relation] The joined relation
         def call(target: self.target)
-          target.join(relation: source, join_keys: { target_key => source_key })
+          target.join(relation: source, join_keys: { target_key => source_key }).distinct
         end
 
         # Performs a join operation

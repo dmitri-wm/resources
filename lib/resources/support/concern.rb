@@ -1,4 +1,5 @@
-a # frozen_string_literal: true
+# frozen_string_literal: true
+
 module Resources
   module Concern
     class MultipleIncludedBlocks < StandardError # :nodoc:

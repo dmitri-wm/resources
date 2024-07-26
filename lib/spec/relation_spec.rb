@@ -62,23 +62,23 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
     module Relations
       ASSOCIATIONS = {
-        Company: proc do
-          associate do
+        Company: proc do |klass|
+          klass.associate do
             has_many :departments
             has_many :employees, through: :departments
             has_many :projects, through: :departments
           end
         end,
-        Employee: proc do
-          associate do
+        Employee: proc do |klass|
+          klass.associate do
             belongs_to :department
             has_many :tasks
             has_one :company, through: :department
             has_many :projects, through: :department
           end
         end,
-        Project: proc do
-          associate do
+        Project: proc do |klass|
+          klass.associate do
             belongs_to :department
             has_many :tasks
             has_many :project_assignments
@@ -86,22 +86,22 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
             belongs_to :company, through: :department
           end
         end,
-        Task: proc do
-          associate do
+        Task: proc do |klass|
+          klass.associate do
             belongs_to :project
             belongs_to :employee
             has_one :department, through: :project
             has_one :company, through: :department
           end
         end,
-        ProjectAssignment: proc do
-          associate do
+        ProjectAssignment: proc do |klass|
+          klass.associate do
             belongs_to :project
             belongs_to :employee
           end
         end,
-        Department: proc do
-          associate do
+        Department: proc do |klass|
+          klass.associate do
             belongs_to :company
             has_many :employees
             has_many :projects
@@ -112,9 +112,17 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
     end
   end
 
-  let(:context) { double('context', company_id: company.id, project_id: project) }
-  let_it_be(:company) { CompanyModel.create!(name: 'Test Company') }
-  let_it_be(:other_company) { CompanyModel.create!(name: 'Other Company') }
+  after(:all) do
+    ActiveRecord::Base.connection.drop_table(:companies)
+    ActiveRecord::Base.connection.drop_table(:departments)
+    ActiveRecord::Base.connection.drop_table(:employees)
+    ActiveRecord::Base.connection.drop_table(:projects)
+    ActiveRecord::Base.connection.drop_table(:tasks)
+    ActiveRecord::Base.connection.drop_table(:project_assignments)
+  end
+
+  let_it_be(:company) { CompanyModel.create!(id: 1, name: 'Test Company') }
+  let_it_be(:other_company) { CompanyModel.create!(id: 2, name: 'Other Company') }
   let_it_be(:department) { DepartmentModel.create!(name: 'Test Department', company_id: company.id) }
   let_it_be(:department_two) { DepartmentModel.create!(name: 'Test Department Two', company_id: company.id) }
   let_it_be(:other_department) { DepartmentModel.create!(name: 'Other Department', company_id: other_company.id) }
@@ -127,14 +135,14 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
   let_it_be(:task_two) { TaskModel.create!(name: 'Task Two', project_id: project.id, employee_id: employee_two.id) }
   let_it_be(:other_task) { TaskModel.create!(name: 'Other Task', project_id: other_project.id, employee_id: other_employee.id) }
   let_it_be(:project_assignment) { ProjectAssignmentModel.create!(project_id: project.id, employee_id: employee.id) }
+  let_it_be(:context) { OpenStruct.new(company_id: company.id, project_id: project.id) }
 
   shared_context 'behaves like relation' do
     describe 'association types' do
       context 'has_many' do
         subject do
-          Relations::Company.new(context: context)
-                            .where(id: company.id)
-                            .departments.map(&:name)
+          company_relation.where(id: company.id)
+                          .departments.map(&:name)
         end
 
         it 'returns associated records' do
@@ -144,7 +152,7 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
       context 'belongs_to' do
         subject do
-          Relations::Department.new(context: context).where(id: department.id).companies.map(&:name)
+          department_relation.where(id: department.id).companies.map(&:name)
         end
 
         it 'returns the associated record' do
@@ -154,9 +162,8 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
       context 'has_many :through' do
         subject do
-          Relations::Company.new(context: context)
-                            .where(id: company.id)
-                            .employees.map(&:name)
+          company_relation.where(id: company.id)
+                          .employees.map(&:name)
         end
 
         it 'returns associated records through another association' do
@@ -166,9 +173,8 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
       context 'has_one :through' do
         subject do
-          Relations::Employee.new(context: context)
-                             .where(id: employee.id)
-                             .companies.map(&:name)
+          employee_relation.where(id: employee.id)
+                           .companies.map(&:name)
         end
 
         it 'returns the associated record through another association' do
@@ -178,7 +184,7 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
       context 'belongs_to :through' do
         subject do
-          Relations::Project.new(context: context).where(id: project.id).companies.map(&:name)
+          project_relation.where(id: project.id).companies.map(&:name)
         end
 
         it 'returns the associated record through another association' do
@@ -188,7 +194,7 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
     end
 
     describe 'query methods' do
-      subject(:relation) { Relations::Project.new(context: context) }
+      subject(:relation) { project_relation }
 
       it 'supports where clauses' do
         result = relation.where(name: 'Test Project').to_a
@@ -207,7 +213,7 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
     end
 
     describe 'aggregation methods' do
-      subject(:relation) { Relations::Project.new(context: context) }
+      subject(:relation) { project_relation }
 
       it 'supports count' do
         expect(relation.count).to eq(2)
@@ -222,109 +228,144 @@ RSpec.describe Resources::Sql::Relation::ActiveRecord, type: :integration do
 
   # [Resources::Sql::Relation::ActiveRecord, Resource::DataService::Relation].each do |_parent_class|
   describe 'ActiveRecord adapter' do
-    before_all do
-      module Relations
-        class Company < Resources::Sql::Relation::ActiveRecord
+    include_context 'behaves like relation' do
+      before_all do
+        Resources::Registry::Namespaces::Relations.instance_variable_set(:@store, {})
+      end
+
+      let_it_be(:company_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :companies
           use_ar_model CompanyModel
-        end
-        Company.instance_eval(&ASSOCIATIONS[:Company])
+        end.tap(&Relations::ASSOCIATIONS[:Company]).new(context: context)
+      end
 
-        class Department < Resources::Sql::Relation::ActiveRecord
+      let_it_be(:department_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :departments
           use_ar_model DepartmentModel
-        end
-        Department.instance_eval(&ASSOCIATIONS[:Department])
+        end.tap(&Relations::ASSOCIATIONS[:Department]).new(context: context)
+      end
 
-        class Employee < Resources::Sql::Relation::ActiveRecord
+      let_it_be(:employee_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :employees
           use_ar_model EmployeeModel
-        end
-        Employee.instance_eval(&ASSOCIATIONS[:Employee])
+        end.tap(&Relations::ASSOCIATIONS[:Employee]).new(context: context)
+      end
 
-        class Project < Resources::Sql::Relation::ActiveRecord
+      let_it_be(:project_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :projects
           use_ar_model ProjectModel
-        end
-        Project.instance_eval(&ASSOCIATIONS[:Project])
+        end.tap(&Relations::ASSOCIATIONS[:Project]).new(context: context)
+      end
 
-        class Task < Resources::Sql::Relation::ActiveRecord
+      let_it_be(:task_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :tasks
           use_ar_model TaskModel
-        end
-        Task.instance_eval(&ASSOCIATIONS[:Task])
+        end.tap(&Relations::ASSOCIATIONS[:Task]).new(context: context)
+      end
 
-        class ProjectAssignment < Resources::Sql::Relation::ActiveRecord
+      let_it_be(:project_assignment_relation) do
+        Class.new(Resources::Sql::Relation::ActiveRecord) do
+          relation_name :project_assignments
           use_ar_model ProjectAssignmentModel
-        end
-        ProjectAssignment.instance_eval(&ASSOCIATIONS[:ProjectAssignment])
+        end.tap(&Relations::ASSOCIATIONS[:ProjectAssignment]).new(context: context)
       end
     end
-    include_context 'behaves like relation'
   end
 
   describe 'DataService adapter' do
-    before_all do
-      module Relations
-        class BasicService
-          attr_accessor :context
+    include_context 'behaves like relation' do
+      before_all do
+        Resources::Registry::Namespaces::Relations.instance_variable_set(:@store, {})
+      end
 
-          MODEL = 'placeholder'
+      let_it_be(:basic_service) do
+        class BasicService
+          class << self
+            attr_accessor :model
+
+            def [](model_class)
+              Class.new(self) do
+                self.model = model_class
+              end
+            end
+          end
+
+          attr_accessor :context
 
           def initialize(context:)
             self.context = context
-            self.class.const_set(:MODEL, [self.class.name.split('::').second, 'Model'].join.classify.constantize)
           end
 
           def find_some(filters: {})
-            self.class::MODEL.where(filters)
+            self.class.model.where(filters).to_a.map(&:attributes)
           end
         end
+      end
 
-        class Company < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
-          service_call proc { datasource.find_some(filters: filters) }
+      let_it_be(:base) do
+        Class.new(Resources::DataService::Relation) do
+          relation_name :base
+
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
         end
-        Company.instance_eval(&ASSOCIATIONS[:Company])
+      end
 
-        class Department < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
+      let_it_be(:company_relation) do
+        Class.new(base) do
+          relation_name :companies
+          use_data_service BasicService[CompanyModel]
+        end.tap(&Relations::ASSOCIATIONS[:Company]).new(context: context)
+      end
 
-          service_call proc { datasource.find_some(filters: filters) }
-        end
-        Department.instance_eval(&ASSOCIATIONS[:Department])
+      let_it_be(:department_relation) do
+        Class.new(base) do
+          relation_name :departments
+          use_data_service BasicService[DepartmentModel]
 
-        class Employee < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
+        end.tap(&Relations::ASSOCIATIONS[:Department]).new(context: context)
+      end
 
-          service_call proc { datasource.find_some(filters: filters) }
-        end
-        Employee.instance_eval(&ASSOCIATIONS[:Employee])
+      let_it_be(:employee_relation) do
+        Class.new(base) do
+          relation_name :employees
+          use_data_service BasicService[EmployeeModel]
 
-        class Project < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
+        end.tap(&Relations::ASSOCIATIONS[:Employee]).new(context: context)
+      end
 
-          service_call proc { datasource.find_some(filters: filters) }
-        end
-        Project.instance_eval(&ASSOCIATIONS[:Project])
+      let_it_be(:project_relation) do
+        Class.new(base) do
+          relation_name :projects
+          use_data_service BasicService[ProjectModel]
 
-        class Task < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
+        end.tap(&Relations::ASSOCIATIONS[:Project]).new(context: context)
+      end
 
-          service_call proc { datasource.find_some(filters: filters) }
-        end
-        Task.instance_eval(&ASSOCIATIONS[:Task])
+      let_it_be(:task_relation) do
+        Class.new(base) do
+          relation_name :tasks
+          use_data_service BasicService[TaskModel]
 
-        class ProjectAssignment < Resources::DataService::Relation
-          SERVICE = Class.new(BasicService)
-          use_data_service SERVICE
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
+        end.tap(&Relations::ASSOCIATIONS[:Task]).new(context: context)
+      end
 
-          service_call proc { datasource.find_some(filters: filters) }
-        end
-        ProjectAssignment.instance_eval(&ASSOCIATIONS[:ProjectAssignment])
+      let_it_be(:project_assignment_relation) do
+        Class.new(base) do
+          relation_name :project_assignments
+          use_data_service BasicService[ProjectAssignmentModel]
+
+          service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
+        end.tap(&Relations::ASSOCIATIONS[:ProjectAssignment]).new(context: context)
       end
     end
-
-    include_context 'behaves like relation'
   end
 end

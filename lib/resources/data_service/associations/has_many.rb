@@ -3,7 +3,7 @@ module Resources
     module Associations
       class HasMany < Resources::Associations::HasMany
         def call(target: self.target)
-          target.where(foreign_key => source.pluck(:id))
+          target.where(foreign_key.to_sym => source.pluck(:id))
         end
       end
     end

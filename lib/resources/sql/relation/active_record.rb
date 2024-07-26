@@ -43,7 +43,7 @@ module Resources
         load_on :find, :find_by, :take, :find_sole_by, :first, :last
 
         # Delegate methods to the dataset
-        delegate :exists?, :any?, :many?, :none?, :one?, :count, :average, :minimum, :maximum, :sum, :calculate, to: :dataset
+        delegate :exists?, :any?, :many?, :none?, :one?, :count, :average, :minimum, :maximum, :sum, :calculate, :to_sql, to: :dataset
 
         # Returns context-based conditions for querying
         #
@@ -61,6 +61,8 @@ module Resources
         def base_query
           ar_model.where(context_conditions)
         end
+
+        def self.[](name); end
       end
     end
   end

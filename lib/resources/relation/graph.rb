@@ -31,15 +31,18 @@ class Graph < Dataset
   # @return [Graph] A new Graph instance with the joined relations
   # @raise [ArgumentError] If an unsupported argument type is provided
   def joins(*args, type: :inner)
+    visitor = NestedRelationVisitor.new
     args.reduce(self) do |result, relation|
-      case relation
-      when Symbol
-        result.join(relation: relation, type: type)
-      when Hash
-        join_hash(result, relation, type)
-      else
-        raise ArgumentError, "Unsupported argument type for joins: #{relation.class}"
-      end
+      visitor.visit(result, relation, type)
+    end
+  end
+
+  def join_relation(relation, nested_relations, type)
+    if nested_relations.is_a?(Hash) && nested_relations.key?(:join_keys)
+      join_keys = nested_relations.delete(:join_keys)
+      join(relation: relation, join_keys: join_keys, type: type)
+    else
+      join(relation: relation, type: type)
     end
   end
 
@@ -62,22 +65,6 @@ class Graph < Dataset
   end
 
   private
-
-  def join_hash(result, relations, type)
-    relations.reduce(result) do |acc, (relation, nested_relations)|
-      new_node = if nested_relations.is_a?(Hash) && nested_relations.key?(:join_keys)
-                   join_keys = nested_relations.delete(:join_keys)
-                   acc.join(relation: relation, join_keys: join_keys, type: type)
-                 else
-                   acc.join(relation: relation, type: type)
-                 end
-      if nested_relations && !nested_relations.empty?
-        new_node.nodes.last.joins(nested_relations)
-      else
-        new_node
-      end
-    end
-  end
 
   def join_nested(current_relation)
     nodes.reduce(current_relation) do |result, node|

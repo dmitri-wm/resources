@@ -24,6 +24,7 @@ group :test do
   gem 'test-prof'
 end
 gem 'oj'
-gem 'ruby-lsp', require: false, group: :development
+gem 'ruby-lsp', '~> 0.17.9', require: false, group: :development
 gem 'ruby-lsp-rspec', require: false, group: :development
 gem 'zeitwerk'
+require 'awesome_print'

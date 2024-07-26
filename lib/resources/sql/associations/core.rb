@@ -5,6 +5,7 @@ module Resources
     module Associations
       # Core module provides common functionality for SQL associations
       module Core
+        FETCH_METHODS = %i[fetch find].freeze
         def self.included(klass)
           super
           klass.memoize :join_keys

@@ -51,13 +51,13 @@ module Resources
       # Define supported query methods
       # Usage: supports :paginate, :filter, :order
       defines :supports
-      supports Array.of(Types::Symbol.enum(:order, :filter, :paginate))
+      supports Types::Array.of(Types::Symbol.enum(:order, :filter, :paginate))
 
       # Convert a record to a struct
-      # @param record [Object] The record to be converted
+      # @param data [Hash] The record to be converted
       # @return [AutoStruct] The record converted to an AutoStruct
-      def to_struct(record)
-        AutoStruct.new(record.attributes)
+      def to_struct(data)
+        AutoStruct.new(data)
       end
 
       # Determine if graph join should be used
@@ -67,6 +67,7 @@ module Resources
       end
 
       delegate :service_call, :dataset_class, :dataset_config, :relation_name, :data_service, to: :class
+      delegate :pluck, to: :dataset
       forward(*Dataset::QUERY_METHODS, to: :dataset)
 
       private
