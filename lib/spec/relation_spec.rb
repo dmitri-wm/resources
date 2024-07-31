@@ -17,22 +17,26 @@ RSpec.describe Resources::Relation, type: :integration do
       create_table :employees do |t|
         t.string :name
         t.integer :department_id
+        t.integer :company_id
       end
 
       create_table :projects do |t|
         t.string :name
         t.integer :department_id
+        t.integer :company_id
       end
 
       create_table :tasks do |t|
         t.string :name
         t.integer :project_id
         t.integer :employee_id
+        t.integer :company_id
       end
 
       create_table :project_assignments do |t|
         t.integer :project_id
         t.integer :employee_id
+        t.integer :company_id
       end
     end
 
@@ -82,7 +86,7 @@ RSpec.describe Resources::Relation, type: :integration do
             belongs_to :department
             has_many :tasks
             has_many :project_assignments
-            has_many :employees, through: :project_assignments
+            has_many :employees, through: :project_assignments, assoc_name: :employee
             belongs_to :company, through: :department
           end
         end,
@@ -105,7 +109,7 @@ RSpec.describe Resources::Relation, type: :integration do
             belongs_to :company
             has_many :employees
             has_many :projects
-            has_many :tasks, through: :projects
+            has_many :tasks, through: :employees
           end
         end
       }.freeze
@@ -122,19 +126,23 @@ RSpec.describe Resources::Relation, type: :integration do
   end
 
   let_it_be(:company) { CompanyModel.create!(id: 1, name: 'Test Company') }
-  let_it_be(:other_company) { CompanyModel.create!(id: 2, name: 'Other Company') }
   let_it_be(:department) { DepartmentModel.create!(name: 'Test Department', company_id: company.id) }
   let_it_be(:department_two) { DepartmentModel.create!(name: 'Test Department Two', company_id: company.id) }
+  let_it_be(:employee) { EmployeeModel.create!(name: 'Test Employee', department_id: department.id, company_id: company.id) }
+  let_it_be(:employee_two) { EmployeeModel.create!(name: 'Test Employee Two', department_id: department_two.id, company_id: company.id) }
+  let_it_be(:project) { ProjectModel.create!(name: 'Test Project', company_id: company.id, department_id: department.id) }
+  let_it_be(:project_two) { ProjectModel.create!(name: 'Test Project Two', company_id: company.id, department_id: department.id) }
+  let_it_be(:task) { TaskModel.create!(name: 'Test Task', project_id: project.id, employee_id: employee.id, company_id: company.id) }
+  let_it_be(:task_two) { TaskModel.create!(name: 'Task Two', project_id: project.id, employee_id: employee_two.id, company_id: company.id) }
+  let_it_be(:project_assignment) { ProjectAssignmentModel.create!(project_id: project.id, employee_id: employee.id, company_id: company.id) }
+  let_it_be(:project_assignment_two) { ProjectAssignmentModel.create!(project_id: project.id, employee_id: employee_two.id, company_id: company.id) }
+
+  let_it_be(:other_company) { CompanyModel.create!(id: 2, name: 'Other Company') }
   let_it_be(:other_department) { DepartmentModel.create!(name: 'Other Department', company_id: other_company.id) }
-  let_it_be(:employee) { EmployeeModel.create!(name: 'Test Employee', department_id: department.id) }
-  let_it_be(:employee_two) { EmployeeModel.create!(name: 'Test Employee Two', department_id: department_two.id) }
-  let_it_be(:other_employee) { EmployeeModel.create!(name: 'Other Employee', department_id: other_department.id) }
-  let_it_be(:project) { ProjectModel.create!(name: 'Test Project', department_id: department.id) }
-  let_it_be(:other_project) { ProjectModel.create!(name: 'Other Project', department_id: other_department.id) }
-  let_it_be(:task) { TaskModel.create!(name: 'Test Task', project_id: project.id, employee_id: employee.id) }
-  let_it_be(:task_two) { TaskModel.create!(name: 'Task Two', project_id: project.id, employee_id: employee_two.id) }
-  let_it_be(:other_task) { TaskModel.create!(name: 'Other Task', project_id: other_project.id, employee_id: other_employee.id) }
-  let_it_be(:project_assignment) { ProjectAssignmentModel.create!(project_id: project.id, employee_id: employee.id) }
+  let_it_be(:other_employee) { EmployeeModel.create!(name: 'Other Employee', department_id: other_department.id, company_id: other_company.id) }
+  let_it_be(:other_project) { ProjectModel.create!(name: 'Other Project', company_id: other_company.id, department_id: other_department.id) }
+  let_it_be(:other_task) { TaskModel.create!(name: 'Other Task', project_id: other_project.id, employee_id: other_employee.id, company_id: other_company.id) }
+
   let_it_be(:context) { OpenStruct.new(company_id: company.id, project_id: project.id) }
 
   shared_context 'behaves like relation' do
@@ -194,27 +202,93 @@ RSpec.describe Resources::Relation, type: :integration do
     end
 
     describe 'query methods' do
-      subject(:relation) { project_relation }
+      subject(:relation) { department_relation }
 
       it 'supports where clauses' do
-        result = relation.where(name: 'Test Project').to_a
-        expect(result.map(&:name)).to eq(['Test Project'])
+        result = relation.where(name: 'Test Department').to_a
+        expect(result.map(&:name)).to eq(['Test Department'])
       end
 
       it 'supports order clauses' do
-        expect(relation.order(name: :desc).to_a.map(&:name)).to eq(['Test Project', 'Other Project'])
-        expect(relation.order(name: :asc).to_a.map(&:name)).to eq(['Other Project', 'Test Project'])
+        expect(relation.order(name: :asc).to_a.map(&:name)).to eq(['Test Department', 'Test Department Two'])
+        expect(relation.order(name: :desc).to_a.map(&:name)).to eq(['Test Department Two', 'Test Department'])
       end
 
       it 'supports pagination' do
-        expect(relation.paginate(page: 1, per_page: 1).to_a.map(&:name)).to eq(['Test Project'])
-        expect(relation.paginate(page: 2, per_page: 1).to_a.map(&:name)).to eq(['Other Project'])
-        expect(relation.paginate(page: 1, per_page: 4).to_a.map(&:name)).to eq(['Test Project', 'Other Project'])
+        expect(relation.paginate(page: 1, per_page: 1).to_a.map(&:name)).to eq(['Test Department'])
+        expect(relation.paginate(page: 2, per_page: 1).to_a.map(&:name)).to eq(['Test Department Two'])
+        expect(relation.paginate(page: 1, per_page: 4).to_a.map(&:name)).to eq(['Test Department', 'Test Department Two'])
       end
 
-      it 'supports joins' do
-        result = relation.departments.joins(employees: :tasks).where(tasks: { name: 'Test Task' }).to_a.map(&:name)
-        expect(result).to eq(['Test Department'])
+      describe 'joins' do
+        it 'supports left outer join' do
+          DepartmentModel.create!(name: 'No Project', company_id: company.id)
+
+          result = department_relation.left_outer_join(:projects).distinct(:id).to_a
+          expect(result.map(&:name)).to match_array(['Test Department', 'Test Department Two', 'No Project'])
+        end
+
+        it 'supports joining through associations' do
+          result = department_relation.joins(:tasks).distinct.to_a
+          expect(result.map(&:name)).to eq(['Test Department', 'Test Department Two'])
+        end
+
+        it 'supports nested joins' do
+          result = company_relation.joins(departments: { employees: :tasks }).distinct.to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports joins with conditions' do
+          result = company_relation.joins(:departments).where(departments: { name: 'Test Department' }).to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports joins across different relation types' do
+          result = project_relation.join(relation: employee_relation, join_keys: { id: :department_id }, name: :employees)
+                                   .where(employees: { name: 'Test Employee' })
+                                   .to_a
+          expect(result.map(&:name)).to eq(['Test Project'])
+        end
+
+        it 'supports complex multi-table joins' do
+          result = company_relation.joins(departments: { projects: :tasks })
+                                   .where(tasks: { name: 'Test Task' })
+                                   .to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports joining has_many :through associations' do
+          result = company_relation.employees.to_a
+          expect(result.map(&:name)).to eq(['Test Employee', 'Test Employee Two'])
+        end
+
+        it 'supports joining belongs_to :through associations' do
+          result = task_relation.companies.to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports joining has_one :through associations' do
+          result = employee_relation.companies.to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports chaining multiple joins' do
+          result = company_relation.joins(:departments)
+                                   .joins(:employees)
+                                   .joins(:projects)
+                                   .distinct
+                                   .to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
+
+        it 'supports joining with custom conditions' do
+          result = company_relation.joins(:departments)
+                                   .where(departments: { name: 'Test Department' })
+                                   .joins(:employees)
+                                   .where(employees: { name: 'Test Employee' })
+                                   .to_a
+          expect(result.map(&:name)).to eq(['Test Company'])
+        end
       end
     end
 
@@ -240,45 +314,57 @@ RSpec.describe Resources::Relation, type: :integration do
       end
 
       let_it_be(:company_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class CompanyRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :companies
           use_ar_model CompanyModel
-        end.tap(&Relations::ASSOCIATIONS[:Company]).new(context: context)
+        end
+
+        CompanyRelation.tap(&Relations::ASSOCIATIONS[:Company]).new(context: context)
       end
 
       let_it_be(:department_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class DepartmentRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :departments
           use_ar_model DepartmentModel
-        end.tap(&Relations::ASSOCIATIONS[:Department]).new(context: context)
+        end
+
+        DepartmentRelation.tap(&Relations::ASSOCIATIONS[:Department]).new(context: context)
       end
 
       let_it_be(:employee_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class EmployeeRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :employees
           use_ar_model EmployeeModel
-        end.tap(&Relations::ASSOCIATIONS[:Employee]).new(context: context)
+        end
+
+        EmployeeRelation.tap(&Relations::ASSOCIATIONS[:Employee]).new(context: context)
       end
 
       let_it_be(:project_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class ProjectRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :projects
           use_ar_model ProjectModel
-        end.tap(&Relations::ASSOCIATIONS[:Project]).new(context: context)
+        end
+
+        ProjectRelation.tap(&Relations::ASSOCIATIONS[:Project]).new(context: context)
       end
 
       let_it_be(:task_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class TaskRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :tasks
           use_ar_model TaskModel
-        end.tap(&Relations::ASSOCIATIONS[:Task]).new(context: context)
+        end
+
+        TaskRelation.tap(&Relations::ASSOCIATIONS[:Task]).new(context: context)
       end
 
       let_it_be(:project_assignment_relation) do
-        Class.new(Resources::Sql::Relation::ActiveRecord) do
+        class ProjectAssignmentRelation < ::Resources::Sql::Relation::ActiveRecord
           relation_name :project_assignments
           use_ar_model ProjectAssignmentModel
-        end.tap(&Relations::ASSOCIATIONS[:ProjectAssignment]).new(context: context)
+        end
+
+        ProjectAssignmentRelation.tap(&Relations::ASSOCIATIONS[:ProjectAssignment]).new(context: context)
       end
     end
   end
@@ -307,8 +393,15 @@ RSpec.describe Resources::Relation, type: :integration do
             self.context = context
           end
 
+          def base_scope
+            self.class.model
+          end
+
           def find_some(filters: {})
-            self.class.model.where(filters).to_a.map(&:attributes)
+            base_scope.where(filters).then do |scope|
+              scope = scope.where(company_id: context.company_id) if base_scope.column_names.include?('company_id')
+              scope
+            end.to_a.map(&:attributes)
           end
         end
       end
@@ -316,6 +409,7 @@ RSpec.describe Resources::Relation, type: :integration do
       let_it_be(:base) do
         Class.new(Resources::DataService::Relation) do
           relation_name :base
+          supports %i[order filter paginate]
 
           service_call proc { |datasource, options| datasource.find_some(filters: options[:filters]) }
         end

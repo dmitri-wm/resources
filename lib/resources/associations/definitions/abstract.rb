@@ -19,6 +19,7 @@ module Resources
       class Abstract
         extend Dry::Initializer
         extend Dry::Core::ClassAttributes
+        include Memoizable
 
         defines :result
 
@@ -169,8 +170,7 @@ module Resources
           build_association(source:).join
         end
 
-        # Uncomment to memoize the target method
-        # memoize :target
+        memoize :target
       end
     end
   end

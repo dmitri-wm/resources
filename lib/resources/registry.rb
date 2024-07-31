@@ -78,8 +78,7 @@ module Resources
           define_method registry_name do
             registry_class
           end
-          alias_method :into, registry_name
-
+          alias_method :registry, registry_name
           # Defines a method to retrieve items from the registry
           # Example: Parent[:happy] # => Happy
           define_method(:[]) do |key|
@@ -110,17 +109,11 @@ module Resources
           define_method :inherited do |subclass|
             super(subclass)
 
-            puts "inherited #{subclass}"
             # Schedule the callback to be executed after the class definition is complete
             TracePoint.new(:end) do |tp|
               if tp.self == subclass
-                puts "Resolved: #{subclass}"
-                puts "Key: #{subclass.registry_key}"
-
                 next if subclass.registry_key.present?
 
-                puts "sending default to #{subclass}"
-                puts "sending default to #{subclass.instance_exec(&default)}"
                 subclass.public_send(key_resolve_override, default)
 
                 tp.disable
@@ -134,6 +127,16 @@ module Resources
     # Base class for all registries
     class Base
       class << self
+        def const_missing(name)
+          Inflector.then do |i|
+            i.pluralize(
+              i.underscore(name.to_s)
+            ).to_sym
+          end.then do |relation_name|
+            store[relation_name.to_sym] || super
+          end
+        end
+
         # Returns the store for the registry
         def store
           @store ||= Concurrent::Map.new
@@ -156,7 +159,7 @@ module Resources
         # Example:
         #   Resources::Registry::Namespaces::Childgarden[:happy] # => Happy
         def [](key)
-          store[key] || try_to_load(key) || raise(KeyError, "#{key} is not registered")
+          store[key] || raise(KeyError, "#{key} is not registered")
         end
 
         # Checks if a key exists in the registry
@@ -166,9 +169,6 @@ module Resources
         def key?(key)
           store.key?(key)
         end
-
-        # Hook method for lazy loading (to be implemented by subclasses if needed)
-        def try_to_load(_key); end
       end
     end
   end

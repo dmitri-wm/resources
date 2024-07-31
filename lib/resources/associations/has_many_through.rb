@@ -6,12 +6,13 @@ module Resources
     #
     # @api public
     class HasManyThrough < Abstract
-      attr_reader :join_relation
+      attr_reader :join_relation, :through_identifier
 
       # @api private
       def initialize(...)
         super
         @join_relation = through.join_relation
+        @through_identifier = through.call(source)
       end
 
       # @api public
@@ -21,10 +22,6 @@ module Resources
 
       def foreign_key
         definition.foreign_key || join_relation.foreign_key(source.name)
-      end
-
-      def through
-        definition.through
       end
 
       def associate(children, parent)
@@ -39,8 +36,6 @@ module Resources
         end
       end
 
-      protected
-
       def source_key
         source.primary_key
       end
@@ -49,12 +44,32 @@ module Resources
         foreign_key
       end
 
+      def through_association
+        through_identifier.join_association
+      end
+
+      def through_assoc_name
+        through_identifier.through_assoc_name
+      end
+
+      def target_assoc_name
+        through_identifier.target_assoc_name
+      end
+
+      def target_association
+        through_identifier.target_association
+      end
+
+      def target_relation
+        through_identifier.target_relation
+      end
+
+      def through_relation
+        through_identifier.join_relation
+      end
+
       def join_assoc
-        if join_relation.associations.key?(through.assoc_name)
-          join_relation.associations[through.assoc_name]
-        else
-          join_relation.associations[through.target]
-        end
+        through_identifier.target_association
       end
 
       # @description

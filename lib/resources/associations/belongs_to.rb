@@ -19,18 +19,6 @@ module Resources
         definition.foreign_key || "#{target.name}_id".to_sym
       end
 
-      # Associates a child resource with a parent resource
-      #
-      # @param child [Hash] The child resource to be associated
-      # @param parent [Hash] The parent resource to associate with
-      # @return [Hash] The child resource with the foreign key set to the parent's primary key
-      # @example
-      #   belongs_to.associate({name: 'Post'}, {id: 1, name: 'User'}) #=> {name: 'Post', user_id: 1}
-      def associate(child, parent)
-        fk, pk = join_key_map
-        child.merge(fk => parent.fetch(pk))
-      end
-
       protected
 
       # Returns the source key for the association

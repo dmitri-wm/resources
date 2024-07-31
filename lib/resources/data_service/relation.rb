@@ -39,12 +39,17 @@ module Resources
 
       # Define supported query methods
       # Usage: supports :paginate, :filter, :order
-      defines :supports
-      supports Types::Array.of(Types::Symbol.enum(:order, :filter, :paginate))
+
+      defines :supports, type: Types::Array.of(Types::Symbol.enum(:order, :filter, :paginate))
+      supports []
 
       # @!attribute [r] dataset
       #   @return [Dataset] The dataset instance
       option :dataset, default: -> { initialize_dataset }
+
+      delegate :service_call, :dataset_class, :dataset_config, :relation_name, :data_service, to: :class
+      delegate :pluck, :count, :exists?, to: :dataset
+      forward(*Dataset::QUERY_METHODS, to: :dataset)
 
       # Convert a record to a struct
       # @param data [Hash] The record to be converted
@@ -53,17 +58,19 @@ module Resources
         AutoStruct.new(data)
       end
 
-      # Determine if graph join should be used
-      # @return [Boolean] Always returns true in this implementation
-      def use_graph_join?(*)
-        true
+      def graph
+        Graph.new(relation: self, meta: { root: true })
+      end
+      delegate :left_outer_join, :joins, :join, :join_by_type, to: :graph
+
+      def join!(relation:, join_keys:, name:, type: :inner)
+        with(dataset: dataset.join(dataset: relation.dataset, join_keys:, type:, name:))
       end
 
-      delegate :service_call, :dataset_class, :dataset_config, :relation_name, :data_service, to: :class
-      delegate :pluck, :count, :exists?, to: :dataset
-      forward(*Dataset::QUERY_METHODS, to: :dataset)
-
-      private
+      # @return [Loaded] the loaded instance
+      def pf_keys_fetch_prepare
+        with(dataset: dataset.to_a)
+      end
 
       # Initialize the dataset
       # This method creates a new dataset instance with the configured data service and options

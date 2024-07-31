@@ -5,7 +5,6 @@ module Resources
     module Associations
       # Core module provides common functionality for SQL associations
       module Core
-        FETCH_METHODS = %i[fetch find].freeze
         def self.included(klass)
           super
           klass.memoize :join_keys
@@ -34,6 +33,14 @@ module Resources
         # @return [Resources::Relation] The relation with the view applied, or the original relation if no view is defined
         def maybe_apply_view(relation)
           view ? apply_view(view, relation) : relation
+        end
+
+        def singular_source_name
+          source.relation_name.to_s.singularize.to_sym
+        end
+
+        def plural_source_name
+          source.relation_name.to_s.pluralize.to_sym
         end
       end
     end

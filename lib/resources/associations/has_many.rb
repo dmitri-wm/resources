@@ -16,7 +16,7 @@ module Resources
       # @example
       #   has_many.foreign_key #=> :user_id
       def foreign_key
-        definition.foreign_key || "#{source.name}_id"
+        definition.foreign_key || "#{source.name}_id".to_sym
       end
 
       # Associates a child resource with a parent resource

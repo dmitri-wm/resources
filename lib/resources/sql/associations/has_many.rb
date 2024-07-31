@@ -12,7 +12,7 @@ module Resources
         # @param target [Resources::Relation] The target relation (default: self.target)
         # @return [Resources::Relation] The joined relation with view applied if defined
         def call(target: self.target)
-          target.join(relation: source, join_keys: { target_key => source_key }).then(&method(:maybe_apply_view))
+          target.join(relation: source, join_keys: { target_key => source_key }, name: singular_source_name).then(&method(:maybe_apply_view))
         end
 
         # Performs a join operation
@@ -22,7 +22,7 @@ module Resources
         # @param target [Resources::Relation] The target relation (default: self.target)
         # @return [Resources::Relation] The joined relation
         def join(type, source = self.source, target = self.target)
-          source.join(relation: target, join_keys:, type:)
+          source.join(relation: target, join_keys:, type:, name:)
         end
       end
     end

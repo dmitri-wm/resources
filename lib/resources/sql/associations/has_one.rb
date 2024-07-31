@@ -4,7 +4,7 @@ module Resources
   module Sql
     module Associations
       # HasOne class represents a has-one association in SQL
-      class HasOne < BelongsTo
+      class HasOne < HasMany
         # Returns the foreign key for the association
         #
         # @return [String] The foreign key name

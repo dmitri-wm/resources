@@ -4,8 +4,6 @@ module Resources
   module Associations
     # Abstract association class that defines the basic structure and behavior
     # for associations between resources.
-    #
-    # @api public
     class Abstract
       extend Dry::Initializer
       include Memoizable
@@ -96,6 +94,10 @@ module Resources
         )
       end
 
+      def through
+        definition.through
+      end
+
       # Prepares the target for the association
       #
       # @param target [Object] The target object to prepare
@@ -106,6 +108,10 @@ module Resources
         else
           call(target:)
         end
+      end
+
+      def fetch_source_key
+        source_key
       end
 
       memoize :combine_keys, :join_key_map

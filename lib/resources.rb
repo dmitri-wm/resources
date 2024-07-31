@@ -10,6 +10,7 @@ require 'dry-monads'
 require 'dry-struct'
 require 'dry-types'
 require 'dry-initializer'
+require 'dry-equalizer'
 require 'awesome_print'
 AwesomePrint.irb!
 AwesomePrint.pry!

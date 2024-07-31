@@ -38,7 +38,11 @@ module Resources
 
             # Define a method to access associations
             define_method(:associations) do
-              ->(name) { self.class.associations[name].build_association(source: self) }
+              lambda do |name|
+                self.class.associations[name].tap do
+                  raise ArgumentError, "Unknown association: #{name} for #{inspect}" unless _1
+                end.build_association(source: self)
+              end
             end
           end
         end
@@ -70,7 +74,7 @@ module Resources
         # @param options [Hash] Additional options for the association
         # @example
         #   has_many :posts
-        #   has_many :comments, through: :posts, assoc_name: :comments, joinable: true, condition: -> { ... }
+        #   has_many :comments, through: :posts, assoc_name: :comments, condition: -> { ... }
         def has_many(name, **options)
           if options[:through]
             add(Definitions::HasManyThrough.new(source:, through: options[:through], name:, **options))

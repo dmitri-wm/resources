@@ -10,14 +10,10 @@ module Resources
 
       FIRST_PAGE = 1
       DEFAULT_PER_PAGE = 10
-      SUPPORTED_SERVICE_METHODS = %i[filter paginate order].freeze
-      QUERY_METHODS = SUPPORTED_SERVICE_METHODS + %i[where]
+      SERVICE_METHODS = %i[filter paginate order select distinct].freeze
+      QUERY_METHODS = SERVICE_METHODS + %i[where filter_map]
 
       adapter :data_service
-
-      # @!attribute [r] cache
-      # @return [Loaded] The cache to be used for the dataset
-      option :cache, optional: true
 
       # @!attribute [r] service_call
       # @return [Proc] The service call to be executed
@@ -39,9 +35,14 @@ module Resources
       # @return [Hash] The ordering criteria for the dataset
       option :order_by, default: -> { {} }
 
+      # @!attribute [r] to_select
+      # @return [Array<Symbol>] The fields to select
+      option :to_select, default: -> { [] }
+
+      option :distinct_by, default: -> { [] }
       # @!attribute [r] supported
       # @return [Array<Symbol>] The supported operations for this dataset
-      option :supported, Types::Array.of(Types::Symbol.enum(*SUPPORTED_SERVICE_METHODS)), default: -> { [] }
+      option :supported, Types::Array.of(Types::Symbol.enum(*SERVICE_METHODS)), default: -> { [] }
 
       # Create a new instance of the dataset, potentially with a custom class
       # @param datasource [Object] The data source
@@ -73,12 +74,20 @@ module Resources
       # @param conditions [Hash] The conditions to apply
       # @return [Dataset] A new dataset instance with the applied conditions
       def filter(conditions)
-        with(filters: { **filters, **conditions })
+        with(filters: { **filters, **conditions.symbolize_keys })
       end
       alias where filter
 
       def order(args)
         with(order_by: args)
+      end
+
+      def select(*args)
+        with(to_select: [*to_select, *args].uniq)
+      end
+
+      def distinct(*args)
+        with(distinct_by: [*distinct_by, *args].uniq)
       end
 
       def count
@@ -98,10 +107,14 @@ module Resources
       end
 
       # Pluck a specific key from the dataset
-      # @param key [Symbol, String] The key to pluck
+      # @!param key [Symbol, String] The key to pluck
       # @return [Array] An array of values for the specified key
       def pluck(...)
-        to_a.pluck(...)
+        call.pluck(...)
+      end
+
+      def join(...)
+        call.join(...)
       end
 
       # Generate query options based on supported keys
@@ -111,6 +124,8 @@ module Resources
           {
             order: -> { { order_by: } },
             filter: -> { { filters: } },
+            select: -> { { to_select: } },
+            distinct: -> { { distinct_by: } },
             paginate: -> { { paginate: { page:, per_page: } } }
           }.values_at(*keys).map(&:call).reduce({}, :merge)
         }
@@ -119,7 +134,7 @@ module Resources
       # Execute the service call with the given options
       # @return [Object] The result of the service call
       def execute_service
-        service_call[datasource, service_options]
+        service_call[datasource, options]
       end
 
       # Generate service options based on supported query methods
@@ -146,7 +161,7 @@ module Resources
         return data if non_supported.empty?
 
         after_load_actions.reduce(data) do |result, (method_name, args)|
-          result.send(method_name, **args)
+          args.is_a?(Array) ? result.send(method_name, *args) : result.send(method_name, **args)
         end
       end
 
@@ -159,7 +174,7 @@ module Resources
       # Determine the non-supported query methods
       # @return [Array<Symbol>] The non-supported query methods
       def non_supported
-        SUPPORTED_SERVICE_METHODS - supported
+        SERVICE_METHODS - supported
       end
 
       # Fetch a custom class for the dataset

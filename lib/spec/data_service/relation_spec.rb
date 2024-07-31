@@ -23,7 +23,7 @@ RSpec.describe Resources::DataService::Relation do
   let(:test_relation_class) do
     class TestRelation < Resources::DataService::Relation
       use_data_service TestDataService
-      service_call ->(dataset) { dataset.datasource.find_some(options: {}, filters: {}) }
+      service_call ->(datasource, options) { datasource.find_some(filters: options[:filters], options: options[:options]) }
       dataset_config proc { option :custom_option, default: -> { 'default' } }
     end
 
@@ -64,7 +64,7 @@ RSpec.describe Resources::DataService::Relation do
     let(:test_relation_with_custom_service_call) do
       class TestRelationCustomServiceCall < Resources::DataService::Relation
         use_data_service TestDataService
-        service_call ->(dataset) { dataset.datasource.find_some(options: {}, filters: { custom: true }) }
+        service_call ->(datasource, _options) { datasource.find_some(options: {}, filters: { custom: true }) }
       end
 
       TestRelationCustomServiceCall
@@ -73,7 +73,7 @@ RSpec.describe Resources::DataService::Relation do
     subject { test_relation_with_custom_service_call.new(context: context) }
 
     it 'uses the custom service_call to fetch data' do
-      expect(subject.dataset.datasource).to receive(:find_some).with(options: {}, filters: { custom: true })
+      expect(subject.dataset.datasource).to receive(:find_some).with(options: {}, filters: { custom: true }) { [] }
       subject.dataset.to_a
     end
   end

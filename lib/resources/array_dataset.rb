@@ -11,21 +11,33 @@ module Resources
 
     # Performs an array-based join operation
     #
-    # @param target [ArrayDataset] The target dataset (default: self)
-    # @param source [ArrayDataset] The source dataset to join with
+    # @param right [ArrayDataset] The source dataset to join with
     # @param key_map [Hash] A hash mapping source keys to target keys
     # @return [ArrayDataset] A new ArrayDataset with the joined data
-    def joins_array(target = self, source, key_map)
+    def joins_array(right, key_map, type = nil, right_alias = nil)
+      left = self
       ((source_key, target_key)) = key_map.to_a
-      target_array = target.to_a
-      source_array = source.to_a
+      target_array = left.to_ary
+      source_array = right.to_ary
 
       joined_array = target_array.flat_map do |target_item|
         matching_sources = source_array.select { |source_item| source_item[source_key] == target_item[target_key] }
-        matching_sources.map { |source_item| target_item.merge(source_item) }
+
+        joined_items = matching_sources.map do |source_item|
+          to_merge = right_alias ? { right_alias => source_item } : source_item
+          target_item.merge(to_merge)
+        end
+
+        next joined_items if joined_items.any? || type == :inner
+
+        right_alias ? target_item.merge(right_alias => nil) : target_item
       end
 
-      ArrayDataset.new(joined_array)
+      self.class.new(joined_array)
+    end
+
+    def combines_array(*args, name)
+      joins_array(*args, name)
     end
 
     # Performs a join operation with another dataset
@@ -68,12 +80,54 @@ module Resources
     alias filter restrict
     alias where restrict
 
-    # Projects the dataset to include only specified attributes
-    #
-    # @param names [Array<Symbol>] The names of the attributes to include
-    # @return [Array] An array of tuples with only the specified attributes
-    def select(*names)
-      map { |tuple| tuple.select { |key| names.include?(key) } }
+    def select(*fields)
+      map do |tuple|
+        fields.each_with_object({}) do |field, result|
+          case field
+          when Symbol
+            result[field] = tuple[field] if tuple.key?(field)
+          when Hash
+            field.each do |key, value|
+              if value.is_a?(Hash) && value[:as]
+                result[value[:as]] = tuple[key] if tuple.key?(key)
+              elsif value.is_a?(Array)
+                result[key] = select_nested(tuple[key], value) if tuple.key?(key)
+              elsif tuple.key?(key)
+                result[key] = select_nested(tuple[key], [value])
+              end
+            end
+          end
+        end
+      end
+    end
+
+    def select_nested(data, fields)
+      return nil unless data
+
+      if data.is_a?(Array)
+        data.map { |item| select_nested(item, fields) }
+      else
+        fields.each_with_object({}) do |field, result|
+          result[field] = data[field] if data.key?(field)
+        end
+      end
+    end
+
+    def distinct(*fields)
+      return self if fields.empty?
+
+      seen = Set.new
+      result = []
+
+      each do |tuple|
+        key = fields.map { |field| tuple[field] }
+        unless seen.include?(key)
+          seen.add(key)
+          result << tuple
+        end
+      end
+
+      self.class.new(result)
     end
 
     # Orders the dataset based on specified fields
@@ -159,7 +213,8 @@ module Resources
     end
     alias to_s inspect
 
-    def to_a = data
+    def to_a = self
+    def to_ary = data
 
     def row_proc
       ->(row) { row }
@@ -193,7 +248,7 @@ module Resources
       self.class.new(datasource)
     end
 
-    %i[size first last size values_at].each do |method_name|
+    %i[size first last size values_at [] include?].each do |method_name|
       define_method(method_name) do |*args, &block|
         response = data.public_send(method_name, *args, &block)
 
@@ -212,7 +267,7 @@ module Resources
       chunk collect collect_concat drop_while find_all flat_map
       grep map reject sort sort_by take_while
       map! combination cycle delete_if keep_if permutation reject!
-      sort_by! each_with_object
+      sort_by! each_with_object each_with_index filter_map
     ].each do |method|
       define_method(method) do |*args, &block|
         return to_enum unless block

@@ -23,29 +23,12 @@ RSpec.describe Resources::DataService::Dataset::Loaded do
     let(:source_dataset) { described_class.new(source_data) }
 
     it 'performs an array-based join operation' do
-      result = dataset.joins_array(dataset, source_dataset, { user_id: :id })
-      expect(result.to_a).to contain_exactly(
+      result = dataset.joins_array(source_dataset, { user_id: :id }, :inner)
+
+      expect(result.to_ary).to contain_exactly(
         { id: 1, name: 'Alice', age: 30, user_id: 1, score: 100 },
         { id: 1, name: 'Alice', age: 30, user_id: 1, score: 90 },
         { id: 2, name: 'Bob', age: 25, user_id: 2, score: 80 }
-      )
-    end
-  end
-
-  describe '#join' do
-    let(:right_data) do
-      [
-        { id: 1, department: 'IT' },
-        { id: 2, department: 'HR' }
-      ]
-    end
-    let(:right_dataset) { described_class.new(right_data) }
-
-    it 'performs a join operation with another dataset' do
-      result = dataset.join(right_dataset)
-      expect(result.to_a).to contain_exactly(
-        { id: 1, name: 'Alice', age: 30, department: 'IT' },
-        { id: 2, name: 'Bob', age: 25, department: 'HR' }
       )
     end
   end
@@ -79,12 +62,79 @@ RSpec.describe Resources::DataService::Dataset::Loaded do
   end
 
   describe '#select' do
+    let(:nested_data) do
+      [
+        { id: 1, name: 'Alice', age: 30, department: { id: 1, name: 'IT' } },
+        { id: 2, name: 'Bob', age: 25, department: { id: 2, name: 'HR' } },
+        { id: 3, name: 'Charlie', age: 35, department: { id: 1, name: 'IT' } }
+      ]
+    end
+    let(:nested_dataset) { described_class.new(nested_data) }
+
     it 'projects the dataset to include only specified attributes' do
       result = dataset.select(:name, :age)
       expect(result).to contain_exactly(
         { name: 'Alice', age: 30 },
         { name: 'Bob', age: 25 },
         { name: 'Charlie', age: 35 }
+      )
+    end
+
+    it 'handles aliasing of fields' do
+      result = dataset.select(:id, { name: { as: :full_name } })
+      expect(result).to contain_exactly(
+        { id: 1, full_name: 'Alice' },
+        { id: 2, full_name: 'Bob' },
+        { id: 3, full_name: 'Charlie' }
+      )
+    end
+
+    it 'selects nested fields' do
+      result = nested_dataset.select(:id, { department: [:name] })
+      expect(result).to contain_exactly(
+        { id: 1, department: { name: 'IT' } },
+        { id: 2, department: { name: 'HR' } },
+        { id: 3, department: { name: 'IT' } }
+      )
+    end
+
+    it 'handles a combination of top-level, aliased, and nested fields' do
+      result = nested_dataset.select(:id, { name: { as: :full_name } }, { department: [:id] })
+      expect(result).to contain_exactly(
+        { id: 1, full_name: 'Alice', department: { id: 1 } },
+        { id: 2, full_name: 'Bob', department: { id: 2 } },
+        { id: 3, full_name: 'Charlie', department: { id: 1 } }
+      )
+    end
+
+    it 'omits non-existent nested fields' do
+      result = dataset.select(:id, { non_existent: [:field] })
+      expect(result.to_ary).to contain_exactly(
+        { id: 1 },
+        { id: 2 },
+        { id: 3 }
+      )
+    end
+
+    it 'ignores non-existent top-level fields' do
+      result = dataset.select(:id, :non_existent_field)
+      expect(result).to contain_exactly(
+        { id: 1 },
+        { id: 2 },
+        { id: 3 }
+      )
+    end
+
+    it 'handles nested arrays' do
+      array_data = [
+        { id: 1, name: 'Alice', skills: [{ id: 1, name: 'Ruby' }, { id: 2, name: 'JavaScript' }] },
+        { id: 2, name: 'Bob', skills: [{ id: 3, name: 'Python' }] }
+      ]
+      array_dataset = described_class.new(array_data)
+      result = array_dataset.select(:id, { skills: [:name] })
+      expect(result).to contain_exactly(
+        { id: 1, skills: [{ name: 'Ruby' }, { name: 'JavaScript' }] },
+        { id: 2, skills: [{ name: 'Python' }] }
       )
     end
   end
@@ -292,6 +342,39 @@ RSpec.describe Resources::DataService::Dataset::Loaded do
     it 'implements enumerable methods' do
       expect(dataset.map { |t| t[:name] }).to eq(%w[Alice Bob Charlie])
       expect(dataset.reject { |t| t[:age] < 30 }.map { |t| t[:name] }).to eq(%w[Alice Charlie])
+    end
+  end
+
+  describe '#distinct' do
+    let(:data_with_duplicates) do
+      [
+        { id: 1, name: 'Alice', department: 'IT' },
+        { id: 2, name: 'Bob', department: 'HR' },
+        { id: 3, name: 'Alice', department: 'IT' },
+        { id: 4, name: 'Charlie', department: 'IT' },
+        { id: 5, name: 'Bob', department: 'Finance' }
+      ]
+    end
+    let(:dataset_with_duplicates) { described_class.new(data_with_duplicates) }
+
+    it 'returns distinct records based on a single field' do
+      result = dataset_with_duplicates.distinct(:name)
+      expect(result.pluck(:name)).to contain_exactly('Alice', 'Bob', 'Charlie')
+    end
+
+    it 'returns distinct records based on multiple fields' do
+      result = dataset_with_duplicates.distinct(:name, :department)
+      expect(result.to_a).to contain_exactly(
+        { id: 1, name: 'Alice', department: 'IT' },
+        { id: 2, name: 'Bob', department: 'HR' },
+        { id: 4, name: 'Charlie', department: 'IT' },
+        { id: 5, name: 'Bob', department: 'Finance' }
+      )
+    end
+
+    it 'returns all records when no fields are specified' do
+      result = dataset_with_duplicates.distinct
+      expect(result.to_ary).to eq(data_with_duplicates)
     end
   end
 end

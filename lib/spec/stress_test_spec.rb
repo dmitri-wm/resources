@@ -248,4 +248,92 @@ RSpec.describe 'Relation Stress Tests', type: :integration do
       expect(end_time - start_time).to be < 10.seconds
     end
   end
+
+  let(:context) { { user: User.new } }
+
+  describe 'Basic operations' do
+    it 'performs basic operations on ActiveRecord relation' do
+      result = User.new(context: context)
+                   .where(name: 'John Doe')
+                   .order(name: :asc)
+                   .limit(10)
+                   .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :name, :email)
+    end
+
+    it 'performs basic operations on DataService relation' do
+      result = ExternalProfile.new(context: context)
+                              .where(profile_data: /Profile data/)
+                              .order(created_at: :desc)
+                              .limit(10)
+                              .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :user_id, :profile_data)
+    end
+  end
+
+  describe 'Joins' do
+    it 'performs joins on ActiveRecord relations' do
+      result = User.new(context: context)
+                   .join(relation: Post.new(context: context), join_keys: { id: :user_id })
+                   .where(posts: { title: /Post/ })
+                   .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :name, :email, :title, :content)
+    end
+
+    it 'performs joins on DataService relations' do
+      result = ExternalProfile.new(context: context)
+                              .join(relation: ExternalData.new(context: context), join_keys: { id: :profile_id })
+                              .where(external_data: { data: /External data/ })
+                              .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :user_id, :profile_data, :data)
+    end
+  end
+
+  describe 'Joins between different adapters' do
+    it 'performs joins between ActiveRecord and DataService relations' do
+      result = User.new(context: context)
+                   .join(relation: Post.new(context: context), join_keys: { id: :user_id })
+                   .join(relation: ExternalProfile.new(context: context), join_keys: { id: :user_id })
+                   .where(posts: { title: /Post/ })
+                   .where(external_profiles: { profile_data: /Profile data/ })
+                   .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :name, :email, :title, :content, :profile_data)
+    end
+  end
+
+  describe 'Nested sorting' do
+    it 'performs nested sorting on ActiveRecord relations' do
+      result = User.new(context: context)
+                   .join(relation: Post.new(context: context), join_keys: { id: :user_id })
+                   .order(posts: { created_at: :desc })
+                   .order(name: :asc)
+                   .limit(10)
+                   .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :name, :email, :title, :content)
+    end
+
+    it 'performs nested sorting on DataService relations' do
+      result = ExternalProfile.new(context: context)
+                              .join(relation: ExternalData.new(context: context), join_keys: { id: :profile_id })
+                              .order(external_data: { created_at: :desc })
+                              .order(created_at: :asc)
+                              .limit(10)
+                              .to_a
+
+      expect(result.length).to be > 0
+      expect(result.first.keys).to include(:id, :user_id, :profile_data, :data)
+    end
+  end
 end

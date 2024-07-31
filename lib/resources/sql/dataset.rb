@@ -17,7 +17,7 @@ module Resources
                               having distinct references none unscope merge except only
                               count average minimum maximum sum calculate
                               pick ids excluding without to_sql].freeze
-      QUERY_METHODS = DS_FORWARD_METHODS + %i[paginate]
+      QUERY_METHODS = DS_FORWARD_METHODS + %i[paginate array_join]
 
       forward(*DS_FORWARD_METHODS, to: :datasource)
 
@@ -37,17 +37,21 @@ module Resources
       # Performs a join operation with another dataset
       # @param dataset [Dataset] The dataset to join with
       # @param join_keys [Hash] The keys to use for joining
+      # @param name [Symbol] The name of the relation to join
       # @param type [Symbol] The type of join to perform (default: :inner)
       # @return [Dataset] A new dataset with the join applied
-      def join(dataset:, join_keys:, type: :inner)
+      def join(dataset:, join_keys:, name:, type: :inner)
         case dataset.adapter
         when :active_record then Operations::ActiveRecordJoin
-        else                     Operations::ArySqlJoin
-        end.call(left: datasource, right: dataset.datasource, join_keys:, type:).then(&rebuild)
+        when :data_set then Operations::ArraySqlJoin
+        else raise ArgumentError, "Unsupported join operation for #{dataset.adapter}"
+        end.call(left: datasource, right: dataset.datasource, join_keys: join_keys, name: name, type: type).then(&rebuild)
       end
 
       # @return [ActiveRecord::ConnectionAdapters::AbstractAdapter] The database connection
-      def connection = ActiveRecord::Base.connection
+      def connection
+        ActiveRecord::Base.connection
+      end
     end
   end
 end

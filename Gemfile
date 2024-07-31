@@ -12,7 +12,6 @@ gem 'rubocop', '~> 1.21'
 gem 'activerecord', '~> 7.0.8.1'
 gem 'pg', '~> 1.3.5'
 gem 'sqlite3', '~> 1.4'
-
 gem 'dry-monads'
 gem 'dry-struct'
 gem 'dry-types'

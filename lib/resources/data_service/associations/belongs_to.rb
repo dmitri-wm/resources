@@ -5,6 +5,8 @@ module Resources
         def call(target: self.target)
           target.where({ id: source.pluck(source_key) })
         end
+
+        def join_keys = { target_key => source_key }
       end
     end
   end

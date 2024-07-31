@@ -36,14 +36,26 @@ module Resources
         @target_assoc_name = target_assoc_name
       end
 
+      def call(source_instance)
+        self.class.new(source_instance, through_assoc_name, target_assoc_name)
+      end
+
+      def join_association
+        source.associations[through_assoc_name]
+      end
+
       # @return [Object] The join relation for the through association
       def join_relation
-        source.associations[through_assoc_name] || raise(ArgumentError, "Association #{through_assoc_name} not found on #{source}")
+        join_association.target || raise(ArgumentError, "Association #{through_assoc_name} not found on #{source}")
+      end
+
+      def target_association
+        join_relation.associations[target_assoc_name]
       end
 
       # @return [Object] The target relation for the association
       def target_relation
-        join_relation.associations[target_assoc_name] || raise(ArgumentError, "Association #{target_assoc_name} not found on #{through_assoc_name}")
+        target_association.target || raise(ArgumentError, "Association #{target_assoc_name} not found on #{through_assoc_name}")
       end
 
       # @api private

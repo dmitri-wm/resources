@@ -23,10 +23,15 @@ module Resources
         def join(type, source = self.source)
           through_association = source.associations[through.through_assoc_name]
           through_relation = through_association.target
-          source = source.join(relation: through_relation, join_keys: through_association.join_keys, type:)
+          source = source.join(
+            relation: through_relation,
+            join_keys: through_association.join_keys,
+            type:,
+            name: through.through_assoc_name
+          )
 
           target_association = through_relation.associations[through.target_assoc_name]
-          source.join(relation: target_association.target, join_keys: target_association.join_keys, type:)
+          source.join(relation: target_association.target, join_keys: target_association.join_keys, type:, name: through.target_assoc_name)
         end
 
         # Returns the join keys for the association

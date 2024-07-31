@@ -12,9 +12,12 @@ module Resources
 
     extend Initializer
     extend Dry::Core::ClassAttributes
+    include Dry::Equalizer(:relation_name, :dataset)
+
     include Registry
 
     register into: :relations, by: :name
+    delegate :relation_name, to: :class
 
     EMPTY_HASH = {}.freeze
 
@@ -178,7 +181,7 @@ module Resources
     #
     # @return [Graph] the graph
     def to_graph
-      Graph.new(relation: self)
+      Graph.new(relation: self, meta: { root: true })
     end
 
     # Joins the relation with another relation.
@@ -186,12 +189,12 @@ module Resources
     # @param relation [Relation] the relation to join with
     # @param join_keys [Hash] the join keys
     # @param type [Symbol] the join type
-    # @return [Relation] the joined relation
-    def join(relation:, join_keys: {}, type: :inner)
+    # @return [Relation, Relation::Graph] the joined relation
+    def join(relation:, name: nil, join_keys: {}, type: :inner)
       if use_graph_join?(relation)
-        to_graph.join(relation, join_keys, type)
+        to_graph.join(relation, join_keys, type:, name:)
       else
-        with(dataset: dataset.join(dataset: relation.dataset, join_keys:, type:))
+        with(dataset: dataset.join(dataset: relation.dataset, join_keys:, type:, name:))
       end
     end
 
@@ -207,8 +210,8 @@ module Resources
     #
     # @param relations [Array<Relation>] the relations to join with
     # @return [Relation] the joined relation
-    def left_outer_joins(*relations)
-      build_join(relations, :left)
+    def left_outer_join(*relations)
+      joins_on_schema(relations, :left)
     end
 
     # Performs an inner join with the given arguments.
@@ -216,16 +219,48 @@ module Resources
     # @param args [Array] the arguments
     # @return [Relation] the joined relation
     def joins(*args)
-      build_join(args, :inner)
+      joins_on_schema(args, :inner)
     end
     alias inner_joins joins
+
+    # Preloads the foreign keys for the given association names.
+    # @param assoc_names [Array<Symbol>] the association names
+    # @return [Relation] with preloaded foreign keys
+    def preload_foreign_keys(assoc_names)
+      assoc_names
+        .map(&associations)
+        .map(&:fetch_source_key)
+        .then(&method(:include_primary_key)).then do |assoc_names|
+          pf_keys_fetch_prepare.then do |source_relation|
+            keys_data = source_relation.pluck_as_hash(assoc_names)
+            source_relation.with(meta: meta.merge(pf_keys: keys_data))
+          end
+        end
+    end
+
+    # @return [Relation]
+    def pf_keys_fetch_prepare
+      raise NotImplementedError
+    end
+
+    def include_primary_key(keys)
+      keys | [primary_key]
+    end
+
+    def pluck_as_hash(keys)
+      keys.zip(pluck(*keys)).to_h
+    end
+
+    def primary_key
+      :id
+    end
 
     # Builds a join with the given relations and join type.
     #
     # @param relations [Array<Relation>] the relations to join with
     # @param type [Symbol] the join type
     # @return [Relation] the joined relation
-    def build_join(relations, type)
+    def joins_on_schema(relations, type)
       relations.reduce(self) do |rel, arg|
         case arg
         when Symbol
@@ -240,7 +275,7 @@ module Resources
 
             target_relation = association.target
             joined_target = target_relation.joins(children)
-            rel = rel.join(relation: joined_target, join_keys: association.join_keys, type:)
+            rel = rel.join(relation: joined_target, join_keys: association.join_keys, type:, name: assoc_name)
           end
 
           rel
